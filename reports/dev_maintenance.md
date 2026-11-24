@@ -1,8 +1,7 @@
 # Development maintenance
 
-Checks: 5 passed, 0 failed.
+Checks: 4 passed, 0 failed.
 
-- [PASS] `/home/rafael-albuquerque/repos/econ/.venv/bin/python -m pytest -q` (exit 0)
 - [PASS] `/home/rafael-albuquerque/repos/econ/.venv/bin/python -m econ.cli check` (exit 0)
 - [PASS] `/home/rafael-albuquerque/repos/econ/.venv/bin/python -m econ.cli agents check` (exit 0)
 - [PASS] `/home/rafael-albuquerque/repos/econ/.venv/bin/python -m econ.cli dev agents check` (exit 0)
