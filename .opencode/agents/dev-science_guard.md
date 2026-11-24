@@ -49,7 +49,10 @@ permissions:
   resource: git show *
   effect: allow
 - action: shell
-  resource: python -m econ *
+  resource: python -m econ.cli check *
+  effect: allow
+- action: shell
+  resource: python -m econ.cli dev validate *
   effect: allow
 - action: subagent
   resource: '*'

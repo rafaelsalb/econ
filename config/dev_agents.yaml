@@ -91,7 +91,8 @@ agents:
         - "README.md"
       shell:
         - "python -m pytest *"
-        - "python -m econ *"
+        - "python -m econ.cli check *"
+        - "python -m econ.cli dev validate *"
         - "git diff *"
         - "git status *"
         - "git log *"
@@ -154,7 +155,8 @@ agents:
       edit: [".dev/**"]
       shell:
         - "python -m pytest *"
-        - "python -m econ *"
+        - "python -m econ.cli check *"
+        - "python -m econ.cli dev validate *"
         - "git diff *"
         - "git status *"
         - "git show *"
@@ -172,7 +174,8 @@ agents:
         - "git diff *"
         - "git status *"
         - "git show *"
-        - "python -m econ *"
+        - "python -m econ.cli check *"
+        - "python -m econ.cli dev validate *"
 
   scribe:
     description: Documents approved changes; docs only, no code and no protected paths.
