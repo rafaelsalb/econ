@@ -72,6 +72,25 @@ econ dev run --task DEV-0002
 `econ dev promote` is the human promotion step. It is deliberately separate from
 agent authoring, so no model can silently queue a runnable task.
 
+One exception, stated honestly: with `github.auto_promote: true` (owner
+decision, 2026-11-24), the scheduler imports labeled issues each tick and
+promotes complete contracts from trusted authors straight into `ready/`
+without a human click. Local and `dev-pm` contracts always need `econ dev
+promote`; trusted GitHub intake does not. Turn the flag off in
+`config/dev_policy.yaml` if that is not what you want.
+
+## What this system is, and is not
+
+The development team automates **engineering chores under policy**: tests,
+refactors, tooling, CI, docs, and small behavior changes in non-protected
+code, with gates as the authority and agents advisory. It does not do
+research. Model revisions go through each card's pre-registered revision
+ladder and the critic loop; specs, the validation window, the lockbox, the
+registry, and ensemble selection are risk 3 and human-gated. No development
+agent can alter a scientific verdict, and no dev-agent path reaches the
+lockbox or the registry history. The ceiling is deliberate: a disciplined
+junior engineer with perfect auditability, not a co-researcher.
+
 ## Task contract
 
 A runnable task is a YAML contract under `tasks/ready/`:

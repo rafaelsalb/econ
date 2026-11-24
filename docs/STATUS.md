@@ -170,7 +170,16 @@ changed by the pipeline they judge (`tests/test_dev_policy.py`).
 The human front door is the interactive `dev-pm` agent plus `/dev/propose`;
 it writes a validated contract to `tasks/proposed/`. `econ dev promote` is the
 separate human promotion step into `tasks/ready/`; no agent can promote or run
-the controller itself.
+the controller itself. One honest exception: `github.auto_promote: true`
+(owner decision, 2026-11-24) lets the scheduler promote complete contracts
+from trusted GitHub authors on each tick, without a human click.
+
+What this system is: automated engineering chores under policy — tests,
+refactors, tooling, docs, and small non-protected behavior changes, with the
+mechanical gates as authority. What it is not: a researcher. Model revisions
+stay on each card's pre-registered revision ladder and the critic loop; the
+specs, validation window, lockbox, registry, and ensemble selection are risk 3
+and human-gated, and no dev-agent path can alter a scientific verdict.
 
 Live verification on 2026-11-24: `DEV-9500` ran in a disposable clone with the
 real `dev-*` agents (no fake runner). The lead planned, the implementer wrote
