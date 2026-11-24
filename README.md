@@ -148,7 +148,10 @@ Interactive, with the PM agent:
 
 `dev-pm` interviews you, inspects the relevant code, shows a task card, and
 writes `tasks/proposed/DEV-0001.yaml` only after you confirm. It cannot edit
-source, promote a contract, or run the controller.
+source, promote a contract, or run the controller. The command is defined in
+`.opencode/commands/dev/propose.md`; if it does not appear in the picker (for
+example right after a checkout that added it), run `/reload` — OpenCode
+rebuilds the project's commands and agents.
 
 Headless or hand-written:
 
