@@ -13,7 +13,7 @@ from .paths import claims_conflict
 from .pipeline import DevPipeline, Outcome
 from .policy import DevPolicy
 from .runner import runner_for
-from .sync import GitHubClient
+from .sync import GitHubClient, sync_pull
 from .tasks import TaskStore
 
 
@@ -33,6 +33,7 @@ class DevScheduler:
         auto_merge: bool = True,
         max_parallel: int = 1,
         daily_usd: float | None = None,
+        sync_github: bool = False,
     ):
         from .policy import load_policy
 
@@ -43,6 +44,7 @@ class DevScheduler:
         self.shadow = shadow
         self.auto_merge = auto_merge
         self.max_parallel = max(1, max_parallel)
+        self.sync_github = sync_github
         self.budget = BudgetLedger(
             self.repo, daily_usd if daily_usd is not None else self.policy.budget.daily_usd
         )
@@ -86,6 +88,17 @@ class DevScheduler:
         if not self.lock.acquire():
             return []
         try:
+            if self.sync_github:
+                try:
+                    sync_pull(
+                        self.repo,
+                        self.policy,
+                        self.store,
+                        promote=self.policy.github.auto_promote,
+                    )
+                except Exception:  # noqa: BLE001
+                    # GitHub being unavailable must not stop local work.
+                    pass
             tasks = self.select(limit=max_tasks or self.max_parallel)
             if not tasks:
                 self._write_state([])

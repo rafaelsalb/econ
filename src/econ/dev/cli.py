@@ -74,6 +74,7 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     daemon.add_argument("--shadow", action="store_true")
     daemon.add_argument("--no-auto-merge", action="store_true")
     daemon.add_argument("--executor", choices=["local", "docker"], default="local")
+    daemon.add_argument("--sync", action="store_true", help="import dev:ready issues each tick")
 
     status = sp.add_parser("status", help="show scheduler and queue status")
     status.add_argument("--json", action="store_true")
@@ -280,6 +281,7 @@ def _daemon(args: argparse.Namespace) -> None:
         auto_merge=not args.no_auto_merge,
         max_parallel=args.max_parallel,
         daily_usd=args.daily_budget,
+        sync_github=args.sync,
     )
     outcomes = scheduler.loop(
         interval_s=args.sleep, once=args.once, max_tasks=args.max_tasks

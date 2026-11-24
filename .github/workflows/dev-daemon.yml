@@ -41,7 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run one scheduler tick
-        run: python -m econ.cli dev daemon --once --max-parallel 2
+        run: python -m econ.cli dev daemon --once --max-parallel 2 --sync
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
