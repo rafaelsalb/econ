@@ -4,7 +4,7 @@ description: Second independent reviewer on a different model family, used for r
 mode: subagent
 model: opencode-go/gpt-6-luna#high
 hidden: false
-steps: 20
+steps: 32
 permissions:
 - action: '*'
   resource: '*'
@@ -50,6 +50,9 @@ permissions:
   effect: allow
 - action: shell
   resource: python -m pytest *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m pytest *
   effect: allow
 - action: subagent
   resource: '*'
@@ -168,7 +171,9 @@ Review for:
 - scientific invariants from `AGENTS.md`.
 
 Findings are typed. A blocker or major finding means the patch must change.
-Nitpicks are recorded but do not block.
+Nitpicks are recorded but do not block. Write the artifact as soon as the
+required review is done; do not spend the budget on optional extra tests. A
+missing artifact is a failed run.
 
 Write `.dev/out/reviewer.json` with exactly:
 

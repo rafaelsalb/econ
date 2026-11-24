@@ -131,6 +131,23 @@ def dev_agents(cfg: dict | None = None, *, root: Path | None = None) -> list[Age
     return agents(cfg or load_dev_config(), prefix=DEV_AGENT_PREFIX, root=root)
 
 
+def step_budget_problems(specs: list[AgentSpec], ceiling: int) -> list[str]:
+    """Report agents whose per-turn step cap exceeds the policy ceiling.
+
+    The per-turn cap is a safety and cost control, not a suggestion. Keeping it
+    inside ``budget.max_agent_steps`` makes an increase a deliberate policy
+    change instead of a silent roster edit.
+    """
+    problems = []
+    for spec in specs:
+        if spec.steps > ceiling:
+            problems.append(
+                f"{spec.name}: steps {spec.steps} exceeds "
+                f"budget.max_agent_steps {ceiling}"
+            )
+    return problems
+
+
 def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
     defaults = defaults or {}
     perms: list[dict] = [{"action": "*", "resource": "*", "effect": "deny"}]

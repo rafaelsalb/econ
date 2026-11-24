@@ -44,6 +44,37 @@ def test_metrics_and_dashboard(tmp_path):
     assert info["metrics"]["total"] == 4
 
 
+def test_metrics_report_step_limited_runs(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    _append(
+        repo,
+        [
+            {
+                "task_id": "DEV-0001",
+                "status": "done",
+                "risk": 1,
+                "rounds": 1,
+                "step_limit_reached": True,
+                "max_step_utilization": 0.91,
+            },
+            {
+                "task_id": "DEV-0002",
+                "status": "done",
+                "risk": 1,
+                "rounds": 1,
+                "step_limit_reached": False,
+                "max_step_utilization": 0.4,
+            },
+        ],
+    )
+    m = metrics(repo)
+    assert m["step_limited"] == 1
+    assert m["max_step_utilization"] == 0.91
+    md = dashboard_markdown(repo)
+    assert "Step-limited runs | 1" in md
+    assert "Highest step utilization | 91%" in md
+
+
 def test_canary_results_are_persisted_in_the_dashboard(tmp_path):
     repo = make_repo(tmp_path / "repo")
     write_canary_report(

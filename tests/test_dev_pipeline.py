@@ -1,13 +1,34 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
-from econ.dev.pipeline import DevPipeline
+from econ.agents import dev_agents, load_dev_config
+from econ.dev.pipeline import DevPipeline, step_limit_message
 from econ.dev.runner import FakeRunner
 from econ.dev.tasks import TaskStore
 
 from dev_support import add_task, default_policy, demo_task, make_repo, run_task
+
+
+class StepFakeRunner(FakeRunner):
+    """FakeRunner that reports a fixed step count against the real caps."""
+
+    def __init__(self, repo: Path, *, steps: int, cap: int):
+        super().__init__(repo)
+        self._steps = steps
+        self.specs = {
+            spec.name: replace(spec, steps=cap)
+            for spec in dev_agents(load_dev_config())
+        }
+
+    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+        result = super().run(
+            role, cwd, prompt, timeout=timeout, model_override=model_override
+        )
+        result.steps = self._steps
+        return result
 
 
 def test_pipeline_merges_a_clean_task(tmp_path):
@@ -350,3 +371,52 @@ def test_risk_two_large_non_critical_change_still_auto_merges(tmp_path):
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "done", outcome.decision
     assert (repo / "src" / "econ" / "pad1.py").exists()
+
+
+def test_pipeline_records_step_usage(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task())
+    runner = StepFakeRunner(repo, steps=30, cap=60)
+    outcome = run_task(repo, "DEV-0001", runner=runner)
+    assert outcome.status == "done", outcome.decision
+    run_dir = repo / "runs" / "dev" / "tasks" / "DEV-0001"
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    calls = [event for event in events if event["event"] == "agent_call"]
+    assert calls
+    assert all(call["steps"] == 30 for call in calls)
+    assert all(call["step_limit"] == 60 for call in calls)
+    assert all(call["step_utilization"] == 0.5 for call in calls)
+    assert all(call["step_limit_reached"] is False for call in calls)
+    steps = json.loads((run_dir / "steps.json").read_text())
+    assert steps["max_utilization"] == 0.5
+    index = json.loads((repo / "runs" / "dev" / "index.jsonl").read_text().splitlines()[-1])
+    assert index["max_step_utilization"] == 0.5
+    assert index["step_limit_reached"] is False
+
+
+def test_pipeline_records_a_step_limit_warning(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task())
+    runner = StepFakeRunner(repo, steps=60, cap=60)
+    outcome = run_task(repo, "DEV-0001", runner=runner)
+    assert outcome.status == "done", outcome.decision
+    run_dir = repo / "runs" / "dev" / "tasks" / "DEV-0001"
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    limits = [event for event in events if event["event"] == "agent_step_limit"]
+    assert limits
+    index = json.loads((repo / "runs" / "dev" / "index.jsonl").read_text().splitlines()[-1])
+    assert index["step_limit_reached"] is True
+    assert index["max_step_utilization"] == 1.0
+
+
+def test_step_limit_message_names_the_role_and_limit():
+    message = step_limit_message("implementer", 60, 60)
+    assert "implementer" in message
+    assert "60-step limit" in message
+    assert "did not produce a JSON artifact" in message

@@ -31,6 +31,13 @@ class AgentProtocolError(RuntimeError):
     pass
 
 
+def step_limit_message(role: str, steps: int, limit: int) -> str:
+    return (
+        f"{role} hit its {limit}-step limit after {steps} steps and did not "
+        "produce a JSON artifact; increase the budget or tighten the prompt"
+    )
+
+
 @dataclass
 class Outcome:
     task_id: str
@@ -119,6 +126,10 @@ class DevPipeline:
         self.executor = executor
         self.budget = budget
         self.store = TaskStore(self.repo)
+        specs = getattr(self.runner, "specs", None) or {}
+        if not isinstance(specs, dict):
+            specs = {spec.name: spec for spec in specs}
+        self.step_caps = {name: int(spec.steps) for name, spec in specs.items()}
 
     # -- public API --------------------------------------------------------
     def run_task(self, task_ref: str | Path, *, merge: bool | None = None) -> Outcome:
@@ -375,6 +386,9 @@ class DevPipeline:
             if payload is not None:
                 artifacts.write_json(f"out/{role}.json", payload)
         if payload is None:
+            cap = self.step_caps.get(role)
+            if cap is not None and result.steps >= cap:
+                raise AgentProtocolError(step_limit_message(role, result.steps, cap))
             raise AgentProtocolError(f"{role} did not produce a JSON artifact")
         artifacts.append_event("agent_finished", role=role, round=round_no)
         return payload
@@ -390,6 +404,9 @@ class DevPipeline:
         artifacts.write_text(f"logs/{role}-r{round_no}.stdout.log", result.stdout)
         artifacts.write_text(f"logs/{role}-r{round_no}.stderr.log", result.stderr)
         artifacts.add_cost(role, result.cost_usd, result.tokens)
+        step = artifacts.add_steps(
+            role, round_no, result.steps, self.step_caps.get(role)
+        )
         if self.budget is not None:
             self.budget.add(result.cost_usd)
             if self.budget.spent > self.budget.daily_usd:
@@ -407,7 +424,19 @@ class DevPipeline:
             duration_s=result.duration_s,
             cost_usd=result.cost_usd,
             tokens=result.tokens,
+            steps=result.steps,
+            step_limit=step["limit"],
+            step_utilization=step["utilization"],
+            step_limit_reached=step["limit_reached"],
         )
+        if step["limit_reached"]:
+            artifacts.append_event(
+                "agent_step_limit",
+                role=role,
+                round=round_no,
+                steps=result.steps,
+                limit=step["limit"],
+            )
 
     def _run_implementer(
         self,
@@ -1043,6 +1072,7 @@ class DevPipeline:
         }
         artifacts.write_json("decision.json", decision)
         artifacts.append_event("task_finished", status=status, decision=decision)
+        steps = artifacts.steps()
         artifacts.append_index(
             {
                 "ts": utcnow(),
@@ -1052,6 +1082,8 @@ class DevPipeline:
                 "shadow": self.shadow,
                 "rounds": outcome.rounds if outcome else 0,
                 "cost_usd": outcome.cost_usd if outcome else 0.0,
+                "step_limit_reached": bool(steps.get("limit_reached")),
+                "max_step_utilization": float(steps.get("max_utilization", 0.0)),
                 "reason": decision.get("reason", ""),
                 "merged_commit": decision.get("merged_commit"),
                 "run_dir": str(artifacts.run_dir),

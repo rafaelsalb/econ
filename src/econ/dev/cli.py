@@ -191,6 +191,7 @@ def _agents(args: argparse.Namespace) -> None:
         check_dev_all,
         dev_agents,
         load_dev_config,
+        step_budget_problems,
         validate_dev_variants,
         write_dev_all,
     )
@@ -201,8 +202,13 @@ def _agents(args: argparse.Namespace) -> None:
     elif args.action == "check":
         from .policy import load_policy, reviewer_model_problems
 
+        policy = load_policy(_repo())
+        config = load_dev_config()
         problems = check_dev_all()
-        problems += reviewer_model_problems(load_dev_config(), load_policy(_repo()))
+        problems += reviewer_model_problems(config, policy)
+        problems += step_budget_problems(
+            dev_agents(config), policy.budget.max_agent_steps
+        )
         print("dev agents up to date" if not problems else "\n".join(problems))
         if problems:
             raise SystemExit(1)

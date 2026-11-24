@@ -8,6 +8,8 @@ Rules:
 - Run the test and confirm it fails for the reported reason.
 - Do not modify source, configuration, specs, data, or registry.
 - If you cannot reproduce the bug, say so and leave the test out.
+- Write the artifact as soon as the failing test is demonstrated; do not spend
+  the budget on extra exploration. A missing artifact is a failed run.
 
 Write `.dev/out/reproducer.json` with exactly:
 

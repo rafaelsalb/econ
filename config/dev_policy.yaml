@@ -64,7 +64,9 @@ budget:
   daily_usd: 20.0
   per_task_usd: 5.0
   max_review_rounds: 2
-  max_agent_steps: 40
+  # Ceiling for any single dev agent's per-turn model-step budget. Keep in
+  # sync with config/dev_agents.yaml; `econ dev agents check` enforces it.
+  max_agent_steps: 60
   max_wall_seconds: 2400
 
 gates:

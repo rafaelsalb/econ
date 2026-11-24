@@ -4,7 +4,7 @@ description: Writes the smallest code and test patch that satisfies the acceptan
 mode: subagent
 model: opencode-go/gpt-6-luna#xhigh
 hidden: false
-steps: 40
+steps: 60
 permissions:
 - action: '*'
   resource: '*'
@@ -68,6 +68,18 @@ permissions:
   effect: allow
 - action: shell
   resource: python -m econ.cli --help *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m pytest *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli check *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli dev validate *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli --help *
   effect: allow
 - action: shell
   resource: git diff *

@@ -4,7 +4,7 @@ description: Guards the scientific contract, protected paths, lockbox, registry 
 mode: subagent
 model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
-steps: 20
+steps: 32
 permissions:
 - action: '*'
   resource: '*'
@@ -53,6 +53,12 @@ permissions:
   effect: allow
 - action: shell
   resource: python -m econ.cli dev validate *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli check *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli dev validate *
   effect: allow
 - action: subagent
   resource: '*'
@@ -171,7 +177,8 @@ Check:
 - Are there secrets, credentials, or new network egress?
 
 A protected-path touch is a block for autonomous merging, even if the patch
-looks correct. The human sign-off path is separate.
+looks correct. The human sign-off path is separate. Write the artifact as soon
+as the checks are complete; a missing artifact is a failed run.
 
 Write `.dev/out/science_guard.json` with exactly:
 

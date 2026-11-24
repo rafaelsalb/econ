@@ -14,7 +14,9 @@ Review for:
 - scientific invariants from `AGENTS.md`.
 
 Findings are typed. A blocker or major finding means the patch must change.
-Nitpicks are recorded but do not block.
+Nitpicks are recorded but do not block. Write the artifact as soon as the
+required review is done; do not spend the budget on optional extra tests. A
+missing artifact is a failed run.
 
 Write `.dev/out/reviewer.json` with exactly:
 

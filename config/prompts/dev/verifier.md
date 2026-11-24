@@ -11,6 +11,10 @@ Your job is to try to falsify the change:
 - Check boundaries, empty inputs, error paths, and determinism where relevant.
 - Confirm the patch applies cleanly to the base commit.
 
+Write the artifact as soon as the required checks above are complete; do not
+spend the remaining budget on optional extra checks. Missing artifact means a
+failed run.
+
 Do not edit source or tests. You may write only `.dev/out/verifier.json`.
 
 Write exactly:

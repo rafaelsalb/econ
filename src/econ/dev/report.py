@@ -57,6 +57,11 @@ def metrics(repo: Path) -> dict:
     total = len(rows)
     cost = sum(float(row.get("cost_usd", 0) or 0) for row in rows)
     rounds = [int(row.get("rounds", 0)) for row in done if row.get("rounds")]
+    step_limited = sum(1 for row in rows if row.get("step_limit_reached"))
+    max_utilization = max(
+        (float(row.get("max_step_utilization", 0.0) or 0.0) for row in rows),
+        default=0.0,
+    )
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "total": total,
@@ -72,6 +77,8 @@ def metrics(repo: Path) -> dict:
         "human_intervention_rate": round(escalated / total, 3) if total else 0.0,
         "avg_rounds": round(sum(rounds) / len(rounds), 2) if rounds else 0.0,
         "cost_usd": round(cost, 6),
+        "step_limited": step_limited,
+        "max_step_utilization": round(max_utilization, 3),
         "recent": rows[-15:],
         "canaries": canary_status(repo),
     }
@@ -95,6 +102,8 @@ def dashboard_markdown(repo: Path) -> str:
         f"| Autonomy rate (merged / total) | {m['autonomy_rate']:.1%} |",
         f"| Human intervention rate | {m['human_intervention_rate']:.1%} |",
         f"| Average review rounds | {m['avg_rounds']} |",
+        f"| Step-limited runs | {m['step_limited']} |",
+        f"| Highest step utilization | {m['max_step_utilization']:.0%} |",
         f"| Recorded model cost | ${m['cost_usd']:.2f} |",
         "",
         "## By risk",
@@ -175,6 +184,8 @@ th, td {{ text-align: left; border-bottom: 1px solid #8884; padding: .45rem .5re
   <div class="card"><span>First-pass</span><b>{m['first_pass_rate']:.0%}</b></div>
   <div class="card"><span>Autonomy</span><b>{m['autonomy_rate']:.0%}</b></div>
   <div class="card"><span>Canaries</span><b>{m['canaries']['passed']}/{m['canaries']['total']}</b></div>
+  <div class="card"><span>Step-limited</span><b>{m['step_limited']}</b></div>
+  <div class="card"><span>Max steps</span><b>{m['max_step_utilization']:.0%}</b></div>
   <div class="card"><span>Cost</span><b>${m['cost_usd']:.2f}</b></div>
 </div>
 <h2>Recent tasks</h2>

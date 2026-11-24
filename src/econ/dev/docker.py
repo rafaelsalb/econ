@@ -212,7 +212,7 @@ class DockerRunner:
                     )
                 except (IndexError, OSError):
                     pass
-        text, cost, tokens = parse_opencode_events(out)
+        text, cost, tokens, steps = parse_opencode_events(out)
         return AgentResult(
             role=role,
             command=argv,
@@ -224,4 +224,5 @@ class DockerRunner:
             stderr=err,
             cost_usd=cost,
             tokens=tokens,
+            steps=steps,
         )

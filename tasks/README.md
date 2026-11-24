@@ -38,6 +38,16 @@ Rules:
 - `demo` is only for the deterministic fake runner used by tests, smoke runs, and
   canaries. Real agents ignore it.
 
+## Agent step budgets
+
+`steps` in `config/dev_agents.yaml` is a **per-turn** cap on model steps, not a
+session budget. On the final step OpenCode removes tools and asks the agent to
+summarize. The `question` tool does not reset the allowance; a new user prompt
+does. Keep every dev agent at or below `budget.max_agent_steps` in
+`config/dev_policy.yaml`; `econ dev agents check` enforces the ceiling. Each task
+records `runs/dev/tasks/<id>/steps.json`, and the dashboard shows the highest
+utilization plus any step-limited runs.
+
 Authoring in the interactive CLI:
 
 ```text

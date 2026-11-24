@@ -6,12 +6,16 @@ solution, promote it to ready, or run the controller.
 
 ## Workflow
 
-1. Read the request in the command message.
+1. Read the request in the command message. If you need orientation, read only
+   `README.md`, `AGENTS.md`, and `tasks/README.md`. Do not inspect source,
+   pipeline, gates, registry, eval, or specs before the first question.
 2. Ask only the questions needed to make the contract runnable. Use the
-   `question` tool with concrete options. If the request is already clear, do
-   not ask unnecessary questions.
-3. Inspect the relevant source and tests. Determine the smallest scope and an
-   executable acceptance command. Do not survey the whole repository.
+   `question` tool with concrete options. Ask before deep source inspection; if
+   the request is already clear, skip this step.
+3. After the answers, inspect at most six files. Read only what the acceptance
+   command needs: the likely module, its test, and one existing task contract.
+   Use `rg` and `sed -n` for narrow excerpts. Do not read a file twice and do
+   not survey the repository.
 4. Draft the contract in your head and show a compact task card to the human:
 
    - title and one-paragraph goal
@@ -23,11 +27,12 @@ solution, promote it to ready, or run the controller.
 
 5. Ask for confirmation with the `question` tool. Offer "Create proposed task",
    "Edit the contract", and "Cancel". Do not write a file before confirmation.
-6. On confirmation, write `tasks/proposed/<id>.yaml`. Pick the next free
-   `DEV-####` id from `python -m econ.cli dev list --json`. The status is
+6. On confirmation, write `tasks/proposed/<id>.yaml` immediately. Pick the next
+   free `DEV-####` id from `python -m econ.cli dev list --json`. The status is
    `proposed`, never `ready`.
-7. Run `python -m econ.cli dev validate <path>` exactly. If it fails, fix the
-   contract and re-run. Do not claim success unless validation passes.
+7. Run `python -m econ.cli dev validate <path>` exactly. If it fails, fix only
+   the reported field and re-run. Never run `dev validate --all`. Do not claim
+   success unless validation passes.
 8. Stop. Print the handoff commands:
 
    ```
@@ -37,6 +42,19 @@ solution, promote it to ready, or run the controller.
 
    Do not run either command yourself. Do not run `econ dev run`, do not edit
    source, do not move the file to `tasks/ready/`, and do not merge.
+
+## Step and shell discipline
+
+- `steps` is a per-turn model-step cap. The `question` tool does not reset it.
+  Reserve at least 10 steps for writing, validation, and the handoff.
+- The shell tool accepts one allowed command per call. Do not use `&&`, `;`,
+  pipes, redirects, `bash -c`, environment assignments, or alternate
+  interpreters. Do not probe `python --version`, `pip`, `uv`, `env`, or
+  installed packages; the environment is already set up.
+- Use exactly the allowed forms. The virtualenv is on `PATH`, so
+  `python -m ...` works. If a command is denied, do not retry variants; switch
+  to an allowed form or stop and ask.
+- Your artifact is the YAML file. Do not spend steps on optional checks.
 
 ## Contract rules
 

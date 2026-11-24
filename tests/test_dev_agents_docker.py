@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import yaml
@@ -10,6 +11,7 @@ from econ.agents import (
     check_dev_all,
     dev_agents,
     load_dev_config,
+    step_budget_problems,
     validate_dev_variants,
 )
 from econ.dev.docker import DockerRunner
@@ -40,6 +42,21 @@ def test_dev_roster_is_rendered_and_complete():
     assert specs["pm"].hidden is False
     assert specs["implementer"].mode == "subagent"
     assert check_dev_all() == []
+
+
+def test_dev_step_budgets_stay_within_policy_ceiling():
+    policy = load_policy(Path(__file__).resolve().parent.parent)
+    problems = step_budget_problems(
+        dev_agents(load_dev_config()), policy.budget.max_agent_steps
+    )
+    assert problems == []
+
+
+def test_step_budget_problems_flags_over_ceiling():
+    specs = dev_agents(load_dev_config())
+    pm = next(spec for spec in specs if spec.name == "pm")
+    problems = step_budget_problems([replace(pm, steps=61)], 60)
+    assert problems == ["pm: steps 61 exceeds budget.max_agent_steps 60"]
 
 
 def test_pm_can_ask_questions_but_cannot_edit_source():
@@ -158,11 +175,13 @@ def test_parse_opencode_events():
     lines = [
         json.dumps({"type": "text", "part": {"text": "hello"}}),
         json.dumps({"type": "step_finish", "cost": 0.01, "tokens": {"input": 3, "output": 4}}),
+        json.dumps({"type": "step_finish", "cost": 0.02, "tokens": {"input": 1, "output": 2}}),
     ]
-    text, cost, tokens = parse_opencode_events("\n".join(lines))
+    text, cost, tokens, steps = parse_opencode_events("\n".join(lines))
     assert text == "hello"
-    assert cost == 0.01
-    assert tokens == 7
+    assert cost == 0.03
+    assert tokens == 10
+    assert steps == 2
 
 
 def test_docker_command_is_hardened_and_mounts_worktree(tmp_path):

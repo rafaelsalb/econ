@@ -160,3 +160,37 @@ class RunArtifacts:
             "total_usd": 0.0,
             "roles": {},
         }
+
+    def add_steps(
+        self, role: str, round_no: int, steps: int, limit: int | None
+    ) -> dict[str, Any]:
+        """Record one agent call's step usage against its per-turn cap."""
+        data = self.read_json("steps.json", {}) or {}
+        data.setdefault("calls", [])
+        cap = int(limit) if limit is not None else None
+        used = max(0, int(steps))
+        utilization = round(used / cap, 3) if cap else 0.0
+        entry = {
+            "role": role,
+            "round": int(round_no),
+            "steps": used,
+            "limit": cap,
+            "utilization": utilization,
+            "limit_reached": bool(cap and used >= cap),
+        }
+        data["calls"].append(entry)
+        data["max_utilization"] = max(
+            float(data.get("max_utilization", 0.0)), utilization
+        )
+        data["limit_reached"] = bool(data.get("limit_reached")) or entry[
+            "limit_reached"
+        ]
+        write_json(self.run_dir / "steps.json", data)
+        return entry
+
+    def steps(self) -> dict:
+        return self.read_json("steps.json", {}) or {
+            "calls": [],
+            "max_utilization": 0.0,
+            "limit_reached": False,
+        }

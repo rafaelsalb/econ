@@ -4,7 +4,7 @@ description: Design and impact analysis for risk 2 and 3 tasks; read-only except
 mode: subagent
 model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
-steps: 20
+steps: 32
 permissions:
 - action: '*'
   resource: '*'
@@ -161,6 +161,8 @@ Rules:
   tests that prove the change.
 - Do not edit source code. Do not touch protected paths.
 - Do not redesign unrelated modules.
+- Write the artifact as soon as the design is clear; do not spend the budget on
+  optional exploration. A missing artifact is a failed run.
 
 Write `.dev/out/architect.json` with exactly:
 

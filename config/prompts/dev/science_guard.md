@@ -14,7 +14,8 @@ Check:
 - Are there secrets, credentials, or new network egress?
 
 A protected-path touch is a block for autonomous merging, even if the patch
-looks correct. The human sign-off path is separate.
+looks correct. The human sign-off path is separate. Write the artifact as soon
+as the checks are complete; a missing artifact is a failed run.
 
 Write `.dev/out/science_guard.json` with exactly:
 

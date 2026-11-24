@@ -27,6 +27,7 @@ class AgentResult:
     stderr: str
     cost_usd: float = 0.0
     tokens: int = 0
+    steps: int = 0
 
     def json_output(self) -> dict | None:
         from .artifacts import extract_json
@@ -68,10 +69,11 @@ def _usage(event: dict) -> tuple[float, int]:
     return cost, tokens
 
 
-def parse_opencode_events(stdout: str) -> tuple[str, float, int]:
+def parse_opencode_events(stdout: str) -> tuple[str, float, int, int]:
     texts: list[str] = []
     cost = 0.0
     tokens = 0
+    steps = 0
     for line in stdout.splitlines():
         line = line.strip()
         if not line.startswith("{"):
@@ -84,10 +86,12 @@ def parse_opencode_events(stdout: str) -> tuple[str, float, int]:
             text = event["part"].get("text")
             if text:
                 texts.append(text)
+        if event.get("type") == "step_finish":
+            steps += 1
         c, t = _usage(event)
         cost += c
         tokens += t
-    return "\n\n".join(texts), cost, tokens
+    return "\n\n".join(texts), cost, tokens, steps
 
 
 class OpencodeRunner:
@@ -177,7 +181,7 @@ class OpencodeRunner:
             err = exc.stderr if isinstance(exc.stderr, str) else ""
             code = 124
         duration = time.time() - start
-        text, cost, tokens = parse_opencode_events(out)
+        text, cost, tokens, steps = parse_opencode_events(out)
         return AgentResult(
             role=role,
             command=argv,
@@ -189,6 +193,7 @@ class OpencodeRunner:
             stderr=err,
             cost_usd=cost,
             tokens=tokens,
+            steps=steps,
         )
 
 

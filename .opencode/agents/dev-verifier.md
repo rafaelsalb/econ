@@ -4,7 +4,7 @@ description: Independent acceptance and regression verification on the patch, no
 mode: subagent
 model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
-steps: 24
+steps: 40
 permissions:
 - action: '*'
   resource: '*'
@@ -50,6 +50,18 @@ permissions:
   effect: allow
 - action: shell
   resource: python -m econ.cli --help *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m pytest *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli check *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli dev validate *
+  effect: allow
+- action: shell
+  resource: .venv/bin/python -m econ.cli --help *
   effect: allow
 - action: shell
   resource: git diff *
@@ -173,6 +185,10 @@ Your job is to try to falsify the change:
 - Check that new tests actually exercise the new behavior.
 - Check boundaries, empty inputs, error paths, and determinism where relevant.
 - Confirm the patch applies cleanly to the base commit.
+
+Write the artifact as soon as the required checks above are complete; do not
+spend the remaining budget on optional extra checks. Missing artifact means a
+failed run.
 
 Do not edit source or tests. You may write only `.dev/out/verifier.json`.
 

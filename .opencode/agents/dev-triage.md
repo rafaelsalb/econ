@@ -3,7 +3,7 @@ description: Turns a GitHub issue into a runnable task contract and classifies r
 mode: subagent
 model: opencode-go/glm-5.3-flash
 hidden: false
-steps: 16
+steps: 24
 permissions:
 - action: '*'
   resource: '*'

@@ -3,7 +3,7 @@ description: Documents approved changes; docs only, no code and no protected pat
 mode: subagent
 model: opencode-go/glm-5.3-flash
 hidden: false
-steps: 16
+steps: 24
 permissions:
 - action: '*'
   resource: '*'

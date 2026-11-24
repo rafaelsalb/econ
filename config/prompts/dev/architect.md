@@ -10,6 +10,8 @@ Rules:
   tests that prove the change.
 - Do not edit source code. Do not touch protected paths.
 - Do not redesign unrelated modules.
+- Write the artifact as soon as the design is clear; do not spend the budget on
+  optional exploration. A missing artifact is a failed run.
 
 Write `.dev/out/architect.json` with exactly:
 

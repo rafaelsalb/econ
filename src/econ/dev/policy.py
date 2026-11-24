@@ -40,7 +40,7 @@ class BudgetConfig(BaseModel):
     daily_usd: float = 20.0
     per_task_usd: float = 5.0
     max_review_rounds: int = 2
-    max_agent_steps: int = 24
+    max_agent_steps: int = 60
     max_wall_seconds: int = 2400
 
 

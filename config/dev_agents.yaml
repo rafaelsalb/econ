@@ -11,7 +11,10 @@ defaults:
   variant: max
   mode: subagent
   hidden: false
-  steps: 24
+  # Per-turn model-step cap. On the last step OpenCode removes tools and asks
+  # the agent to summarize. Keep every agent at or below
+  # dev_policy.budget.max_agent_steps; `econ dev agents check` enforces it.
+  steps: 32
   timeout_s: 1200
   permissions:
     read: ["**"]
@@ -34,7 +37,7 @@ agents:
     mode: primary
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 30
+    steps: 40
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -48,6 +51,10 @@ agents:
         - "python -m econ.cli dev list *"
         - "python -m econ.cli dev report *"
         - "python -m econ.cli dev validate *"
+        - ".venv/bin/python -m econ.cli dev status *"
+        - ".venv/bin/python -m econ.cli dev list *"
+        - ".venv/bin/python -m econ.cli dev report *"
+        - ".venv/bin/python -m econ.cli dev validate *"
       subagents:
         - dev-architect
         - dev-implementer
@@ -65,7 +72,7 @@ agents:
     mode: primary
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 30
+    steps: 60
     permissions:
       read: ["**"]
       edit:
@@ -77,6 +84,9 @@ agents:
         - "python -m econ.cli dev list *"
         - "python -m econ.cli dev status *"
         - "python -m econ.cli dev validate *"
+        - ".venv/bin/python -m econ.cli dev list *"
+        - ".venv/bin/python -m econ.cli dev status *"
+        - ".venv/bin/python -m econ.cli dev validate *"
       subagents:
         - dev-triage
       question: allow
@@ -86,7 +96,7 @@ agents:
     prompt: config/prompts/dev/architect.md
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 20
+    steps: 32
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -102,7 +112,7 @@ agents:
     # strong family. Bump the variant before changing the family.
     model: opencode-go/gpt-6-luna
     variant: xhigh
-    steps: 40
+    steps: 60
     permissions:
       read: ["**"]
       edit:
@@ -118,6 +128,10 @@ agents:
         - "python -m econ.cli check *"
         - "python -m econ.cli dev validate *"
         - "python -m econ.cli --help *"
+        - ".venv/bin/python -m pytest *"
+        - ".venv/bin/python -m econ.cli check *"
+        - ".venv/bin/python -m econ.cli dev validate *"
+        - ".venv/bin/python -m econ.cli --help *"
         - "git diff *"
         - "git status *"
         - "git log *"
@@ -144,7 +158,7 @@ agents:
     prompt: config/prompts/dev/reviewer.md
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 20
+    steps: 32
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -153,13 +167,14 @@ agents:
         - "git status *"
         - "git show *"
         - "python -m pytest *"
+        - ".venv/bin/python -m pytest *"
 
   reviewer_alt:
     description: Second independent reviewer on a different model family, used for risk 2 auto-merges.
     prompt: config/prompts/dev/reviewer.md
     model: opencode-go/gpt-6-luna
     variant: high
-    steps: 20
+    steps: 32
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -168,6 +183,7 @@ agents:
         - "git status *"
         - "git show *"
         - "python -m pytest *"
+        - ".venv/bin/python -m pytest *"
 
   verifier:
     description: Independent acceptance and regression verification on the patch, not the agent worktree.
@@ -177,7 +193,7 @@ agents:
     # gates carry the actual verification authority.
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 24
+    steps: 40
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -186,6 +202,10 @@ agents:
         - "python -m econ.cli check *"
         - "python -m econ.cli dev validate *"
         - "python -m econ.cli --help *"
+        - ".venv/bin/python -m pytest *"
+        - ".venv/bin/python -m econ.cli check *"
+        - ".venv/bin/python -m econ.cli dev validate *"
+        - ".venv/bin/python -m econ.cli --help *"
         - "git diff *"
         - "git status *"
         - "git show *"
@@ -195,7 +215,7 @@ agents:
     prompt: config/prompts/dev/science_guard.md
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 20
+    steps: 32
     permissions:
       read: ["**"]
       edit: [".dev/**"]
@@ -205,13 +225,15 @@ agents:
         - "git show *"
         - "python -m econ.cli check *"
         - "python -m econ.cli dev validate *"
+        - ".venv/bin/python -m econ.cli check *"
+        - ".venv/bin/python -m econ.cli dev validate *"
 
   scribe:
     description: Documents approved changes; docs only, no code and no protected paths.
     prompt: config/prompts/dev/scribe.md
     model: opencode-go/glm-5.3-flash
     variant: null
-    steps: 16
+    steps: 24
     permissions:
       read: ["**"]
       edit:
@@ -226,7 +248,7 @@ agents:
     prompt: config/prompts/dev/triage.md
     model: opencode-go/glm-5.3-flash
     variant: null
-    steps: 16
+    steps: 24
     permissions:
       read: ["**"]
       edit:
@@ -239,7 +261,7 @@ agents:
     prompt: config/prompts/dev/reproducer.md
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 24
+    steps: 36
     permissions:
       read: ["**"]
       edit:
@@ -247,3 +269,4 @@ agents:
         - "tests/**"
       shell:
         - "python -m pytest *"
+        - ".venv/bin/python -m pytest *"
