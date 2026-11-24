@@ -1,0 +1,52 @@
+id: CANARY-002
+title: Fix an off-by-one bug with a regression test
+status: proposed
+risk: 1
+priority: 50
+created: 2026-11-24
+goal: |
+  Fix the inclusive range helper so it includes the end value, and add a
+  regression test that fails on the base commit.
+acceptance:
+  - python -m pytest tests/test_canary_range.py -q
+scope:
+  allow:
+    - src/econ/canary_range.py
+    - tests/test_canary_range.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 1
+  max_changed_files: 4
+  max_diff_lines: 60
+source:
+  kind: canary
+  number: 2
+demo:
+  base_files:
+    - path: src/econ/canary_range.py
+      content: |
+        from __future__ import annotations
+
+
+        def inclusive(start: int, end: int) -> list[int]:
+            return list(range(start, end))
+  files:
+    - path: src/econ/canary_range.py
+      content: |
+        from __future__ import annotations
+
+
+        def inclusive(start: int, end: int) -> list[int]:
+            return list(range(start, end + 1))
+    - path: tests/test_canary_range.py
+      content: |
+        from econ.canary_range import inclusive
+
+
+        def test_inclusive_includes_end():
+            assert inclusive(1, 3) == [1, 2, 3]

@@ -1,5 +1,0 @@
-{
-  "next_round": 3,
-  "applied": "R3",
-  "hypothesis": "Replace lagged 12-month inflation in the Taylor rule with the Focus 12-month expectation, making the policy rule forward-looking. Keeps R2. Hypothesis: the Selic defect is a policy-response timing defect."
-}

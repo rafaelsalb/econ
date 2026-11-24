@@ -1,1 +1,0 @@
-Review the model and return typed defects.

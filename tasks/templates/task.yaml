@@ -1,0 +1,26 @@
+# Copy this file to tasks/proposed/DEV-0001.yaml and fill in the contract.
+id: DEV-0001
+title: Short imperative title
+status: proposed
+risk: 1
+priority: 50
+created: 2026-11-24
+goal: |
+  One paragraph describing the observable behavior that must be true.
+acceptance:
+  - python -m pytest tests/test_example.py -q
+scope:
+  allow:
+    - src/econ/example.py
+    - tests/test_example.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5
+  max_changed_files: 10
+  max_diff_lines: 300
+notes: ""

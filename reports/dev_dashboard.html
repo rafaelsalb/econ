@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Development dashboard</title>
+<style>
+:root { color-scheme: light dark; }
+body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 1000px; padding: 0 1rem; }
+h1 { margin-bottom: .25rem; }
+.muted { color: #666; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; margin: 1.5rem 0; }
+.card { border: 1px solid #8884; border-radius: 10px; padding: .9rem 1rem; }
+.card b { display: block; font-size: 1.5rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; border-bottom: 1px solid #8884; padding: .45rem .5rem; }
+.pill { border-radius: 999px; padding: .1rem .55rem; font-size: .85em; background: #8883; }
+.pill.done { background: #2a7f3f33; }
+.pill.escalated { background: #b7791f33; }
+.pill.failed { background: #b8323233; }
+.pill.shadow { background: #4a556833; }
+</style></head><body>
+<h1>Development dashboard</h1>
+<p class="muted">Generated 2026-11-24T14:23:12+00:00</p>
+<div class="cards">
+  <div class="card"><span>Tasks</span><b>0</b></div>
+  <div class="card"><span>Merged</span><b>0</b></div>
+  <div class="card"><span>Escalated</span><b>0</b></div>
+  <div class="card"><span>First-pass</span><b>0%</b></div>
+  <div class="card"><span>Autonomy</span><b>0%</b></div>
+  <div class="card"><span>Cost</span><b>$0.00</b></div>
+</div>
+<h2>Recent tasks</h2>
+<table><thead><tr><th>Task</th><th>Status</th><th>Risk</th><th>Rounds</th><th>Reason</th></tr></thead>
+<tbody><tr><td colspan="5">No tasks yet.</td></tr></tbody></table>
+</body></html>

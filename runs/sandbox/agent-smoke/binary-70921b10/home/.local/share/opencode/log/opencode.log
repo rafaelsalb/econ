@@ -1,1 +1,0 @@
-timestamp=2026-11-24T02:51:16.662Z level=INFO run=d8f26079 message="cli starting" version=2.4.1 channel=latest local=false args="[\"--version\"]" role=cli

@@ -1,1 +1,0 @@
-Review the New Keynesian model card against the estimated diagnostics and the typed defects. Return your typed defects in result.json.

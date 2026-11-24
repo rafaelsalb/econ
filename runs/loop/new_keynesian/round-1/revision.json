@@ -1,5 +1,0 @@
-{
-  "next_round": 2,
-  "applied": "R2",
-  "hypothesis": "Replace the gap-implied IBC-Br path in the GDP satellite bridge with an AR(1) path on monthly IBC-Br growth. The structural inflation and policy block is unchanged. Hypothesis: the GDP defect is a mapping defect, not an inflation-block defect."
-}

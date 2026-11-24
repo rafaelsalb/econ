@@ -20,6 +20,9 @@ permissions:
 - action: shell
   resource: python -m econ.models.*
   effect: allow
+- action: subagent
+  resource: '*'
+  effect: deny
 - action: external_directory
   resource: '*'
   effect: deny
@@ -35,8 +38,86 @@ permissions:
 - action: skill
   resource: '*'
   effect: deny
-- action: subagent
+- action: execute
   resource: '*'
+  effect: deny
+- action: generate_image
+  resource: '*'
+  effect: deny
+- action: edit
+  resource: .git/**
+  effect: deny
+- action: edit
+  resource: '**/.git/**'
+  effect: deny
+- action: read
+  resource: '**/.env'
+  effect: deny
+- action: read
+  resource: '**/.env.*'
+  effect: deny
+- action: read
+  resource: '*.env'
+  effect: deny
+- action: read
+  resource: '*.env.*'
+  effect: deny
+- action: read
+  resource: ~/.ssh/**
+  effect: deny
+- action: read
+  resource: ~/.config/econ/**
+  effect: deny
+- action: read
+  resource: ~/.local/share/opencode/**
+  effect: deny
+- action: shell
+  resource: git push *
+  effect: deny
+- action: shell
+  resource: git reset --hard *
+  effect: deny
+- action: shell
+  resource: git clean *
+  effect: deny
+- action: shell
+  resource: rm *
+  effect: deny
+- action: shell
+  resource: sudo *
+  effect: deny
+- action: shell
+  resource: su *
+  effect: deny
+- action: shell
+  resource: docker *
+  effect: deny
+- action: shell
+  resource: podman *
+  effect: deny
+- action: shell
+  resource: pip install *
+  effect: deny
+- action: shell
+  resource: uv *
+  effect: deny
+- action: shell
+  resource: curl *
+  effect: deny
+- action: shell
+  resource: wget *
+  effect: deny
+- action: shell
+  resource: ssh *
+  effect: deny
+- action: shell
+  resource: scp *
+  effect: deny
+- action: shell
+  resource: chmod *
+  effect: deny
+- action: shell
+  resource: chown *
   effect: deny
 ---
 

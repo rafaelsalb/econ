@@ -1,0 +1,208 @@
+version: 1
+
+# Development team roster. Rendered into .opencode/agents/dev-*.md by:
+#   econ dev agents render
+#
+# These agents are deliberately separate from the research roster. They run
+# against a writable git worktree, but they cannot touch the scientific contract
+# paths and they cannot merge their own work.
+defaults:
+  model: opencode-go/deepseek-v4.1-flash
+  variant: max
+  mode: subagent
+  hidden: false
+  steps: 24
+  timeout_s: 1200
+  permissions:
+    read: ["**"]
+    edit: [".dev/**"]
+    shell: []
+
+agents:
+  lead:
+    description: Software lead; turns a task contract into a plan and dispatches the team. Never edits code.
+    prompt: config/prompts/dev/lead.md
+    mode: primary
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
+    steps: 16
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "git status *"
+        - "git diff *"
+        - "git log *"
+        - "git show *"
+        - "git rev-parse *"
+        - "python -m econ.cli dev status *"
+        - "python -m econ.cli dev list *"
+        - "python -m econ.cli dev report *"
+        - "python -m econ.cli dev validate *"
+      subagents:
+        - dev-architect
+        - dev-implementer
+        - dev-reviewer
+        - dev-reviewer_alt
+        - dev-verifier
+        - dev-science_guard
+        - dev-scribe
+        - dev-triage
+        - dev-reproducer
+
+  architect:
+    description: Design and impact analysis for risk 2 and 3 tasks; read-only except for the design artifact.
+    prompt: config/prompts/dev/architect.md
+    model: opencode-go/qwen3.8-max
+    variant: null
+    steps: 20
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "git diff *"
+        - "git status *"
+        - "git show *"
+
+  implementer:
+    description: Writes the smallest code and test patch that satisfies the acceptance criteria.
+    prompt: config/prompts/dev/implementer.md
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
+    steps: 30
+    permissions:
+      read: ["**"]
+      edit:
+        - ".dev/**"
+        - "src/**"
+        - "tests/**"
+        - "docs/**"
+        - "config/**"
+        - "Makefile"
+        - "README.md"
+      shell:
+        - "python -m pytest *"
+        - "python -m econ *"
+        - "git diff *"
+        - "git status *"
+        - "git log *"
+        - "git show *"
+      deny:
+        # The implementer may never change the rules of the game.
+        - { action: edit, resource: "specs/**", effect: deny }
+        - { action: edit, resource: "data/**", effect: deny }
+        - { action: edit, resource: "registry/**", effect: deny }
+        - { action: edit, resource: "eval/**", effect: deny }
+        - { action: edit, resource: "sandbox/**", effect: deny }
+        - { action: edit, resource: "src/econ/evaluate.py", effect: deny }
+        - { action: edit, resource: "src/econ/critics.py", effect: deny }
+        - { action: edit, resource: "src/econ/diagnostics.py", effect: deny }
+        - { action: edit, resource: "src/econ/loop.py", effect: deny }
+        - { action: edit, resource: "src/econ/lockbox.py", effect: deny }
+        - { action: edit, resource: "src/econ/vintage.py", effect: deny }
+        - { action: edit, resource: "src/econ/checks.py", effect: deny }
+        - { action: edit, resource: "config/dev_policy.yaml", effect: deny }
+        - { action: edit, resource: "config/dev_agents.yaml", effect: deny }
+
+  reviewer:
+    description: Blind code review of the commit diff and test evidence. Cannot edit code.
+    prompt: config/prompts/dev/reviewer.md
+    model: opencode-go/qwen3.8-max
+    variant: null
+    steps: 20
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "git diff *"
+        - "git status *"
+        - "git show *"
+        - "python -m pytest *"
+
+  reviewer_alt:
+    description: Second independent reviewer on a different model, used for risk 2 auto-merges.
+    prompt: config/prompts/dev/reviewer.md
+    model: opencode-go/kimi-k3
+    variant: null
+    steps: 20
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "git diff *"
+        - "git status *"
+        - "git show *"
+        - "python -m pytest *"
+
+  verifier:
+    description: Independent acceptance and regression verification on the patch, not the agent worktree.
+    prompt: config/prompts/dev/verifier.md
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
+    steps: 24
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "python -m pytest *"
+        - "python -m econ *"
+        - "git diff *"
+        - "git status *"
+        - "git show *"
+
+  science_guard:
+    description: Guards the scientific contract, protected paths, lockbox, registry append-only rule, and determinism.
+    prompt: config/prompts/dev/science_guard.md
+    model: opencode-go/kimi-k3
+    variant: null
+    steps: 20
+    permissions:
+      read: ["**"]
+      edit: [".dev/**"]
+      shell:
+        - "git diff *"
+        - "git status *"
+        - "git show *"
+        - "python -m econ *"
+
+  scribe:
+    description: Documents approved changes; docs only, no code and no protected paths.
+    prompt: config/prompts/dev/scribe.md
+    model: opencode-go/glm-5.3-flash
+    variant: null
+    steps: 16
+    permissions:
+      read: ["**"]
+      edit:
+        - ".dev/**"
+        - "README.md"
+        - "CHANGELOG.md"
+        - "docs/**"
+      shell: []
+
+  triage:
+    description: Turns a GitHub issue into a runnable task contract and classifies risk.
+    prompt: config/prompts/dev/triage.md
+    model: opencode-go/glm-5.3-flash
+    variant: null
+    steps: 16
+    permissions:
+      read: ["**"]
+      edit:
+        - ".dev/**"
+        - "tasks/proposed/**"
+      shell: []
+
+  reproducer:
+    description: Turns a bug report into a minimal failing test before implementation.
+    prompt: config/prompts/dev/reproducer.md
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
+    steps: 24
+    permissions:
+      read: ["**"]
+      edit:
+        - ".dev/**"
+        - "tests/**"
+      shell:
+        - "python -m pytest *"

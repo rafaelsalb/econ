@@ -1,0 +1,43 @@
+id: CANARY-001
+title: Add a small pure function and its test
+status: proposed
+risk: 1
+priority: 50
+created: 2026-11-24
+goal: |
+  Add a function that returns the sum of two numbers and prove it with a test.
+acceptance:
+  - python -m pytest tests/test_canary_add.py -q
+scope:
+  allow:
+    - src/econ/canary_add.py
+    - tests/test_canary_add.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 1
+  max_changed_files: 4
+  max_diff_lines: 60
+source:
+  kind: canary
+  number: 1
+demo:
+  files:
+    - path: src/econ/canary_add.py
+      content: |
+        from __future__ import annotations
+
+
+        def add(left: int, right: int) -> int:
+            return left + right
+    - path: tests/test_canary_add.py
+      content: |
+        from econ.canary_add import add
+
+
+        def test_add():
+            assert add(2, 3) == 5

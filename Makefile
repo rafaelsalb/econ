@@ -1,8 +1,9 @@
-PY := .venv/bin/python
+PY ?= .venv/bin/python
 
 .PHONY: ingest backtest score loop loop-agents report test check pipeline all agents \
         ensemble lockbox-open lockbox-status final-report phase3 \
-        sandbox-build sandbox-setup sandbox-smoke clean
+        sandbox-build sandbox-setup sandbox-smoke clean gate dev-check dev-list \
+        dev-dashboard dev-smoke
 
 ingest:
 	$(PY) -m econ.cli ingest
@@ -45,6 +46,31 @@ check:
 agents:
 	$(PY) -m econ.cli agents render
 	$(PY) -m econ.cli agents check
+	$(PY) -m econ.cli dev agents render
+	$(PY) -m econ.cli dev agents check
+
+dev-check:
+	$(PY) -m econ.cli dev doctor
+	$(PY) -m econ.cli dev validate --all
+	$(PY) -m econ.cli dev agents check
+
+dev-list:
+	$(PY) -m econ.cli dev list
+
+dev-dashboard:
+	$(PY) -m econ.cli dev report --write
+
+dev-smoke:
+	$(PY) -m econ.cli dev smoke --fake
+
+dev-daemon:
+	$(PY) -m econ.cli dev daemon --once --max-parallel 2
+
+dev-maintenance:
+	$(PY) -m econ.cli dev maintenance
+
+gate: test check agents dev-check
+	@echo "GATE PASS"
 
 sandbox-build:
 	$(PY) -m econ.cli sandbox build
@@ -60,4 +86,4 @@ pipeline: backtest score ensemble
 all: test check
 
 clean:
-	rm -rf .pytest_cache
+	rm -rf .pytest_cache .mypy_cache .ruff_cache

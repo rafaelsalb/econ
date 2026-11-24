@@ -1,0 +1,58 @@
+name: dev-daemon
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: dev-daemon
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  tick:
+    if: github.event_name != 'issues' || github.event.label.name == 'dev:ready'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -e ".[dev]"
+          npm install --global @opencode/cli
+      - name: Configure git identity
+        run: |
+          git config user.name "econ-dev-bot"
+          git config user.email "econ-dev-bot@users.noreply.github.com"
+      - name: Import ready issues
+        run: python -m econ.cli dev sync --pull --promote
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run one scheduler tick
+        run: python -m econ.cli dev daemon --once --max-parallel 2
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dashboard
+        run: python -m econ.cli dev report --write
+      - name: Persist task state and dashboard
+        run: |
+          git add tasks reports/dev_dashboard.md reports/dev_dashboard.html
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): scheduler state and dashboard [skip ci]"
+            git push
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

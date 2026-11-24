@@ -178,7 +178,14 @@ def _mounts(ws: Workspace) -> list[str]:
     ]
     agents_dir = config.ROOT / ".opencode" / "agents"
     if agents_dir.exists():
-        mounts.append(f"{agents_dir}:/workspace/.opencode/agents:ro")
+        # Mount only the research roster. Development agents have broad read
+        # access to the repository and must not be visible inside the research
+        # sandbox.
+        research_agents = sorted(agents_dir.glob("econ-*.md"))
+        for agent_file in research_agents:
+            mounts.append(
+                f"{agent_file}:/workspace/.opencode/agents/{agent_file.name}:ro"
+            )
     project_config = config.ROOT / "opencode.jsonc"
     if project_config.exists():
         mounts.append(f"{project_config}:/workspace/opencode.jsonc:ro")

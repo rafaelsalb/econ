@@ -1,0 +1,49 @@
+# Development tasks
+
+A task is a frozen YAML contract. Put runnable tasks in `ready/`; the scheduler
+only picks those. `proposed/` holds issues that have not been promoted yet.
+
+Required fields:
+
+```yaml
+id: DEV-0001
+title: ...
+status: proposed        # proposed | ready | active | done | escalated | failed | shadow
+risk: 1                 # 0 docs, 1 tests/refactor, 2 behavior, 3 protected/science
+priority: 50
+created: 2026-11-24
+goal: |
+  What must be true when this is done.
+acceptance:
+  - python -m pytest tests/test_example.py -q
+scope:
+  allow: ["src/econ/example.py", "tests/test_example.py"]
+  deny: ["specs/**", "registry/**"]
+limits:
+  max_review_rounds: 2
+  max_usd: 5
+  max_changed_files: 10
+  max_diff_lines: 300
+```
+
+Rules:
+
+- Acceptance criteria are executable commands, never prose. Shell metacharacters
+  are rejected so an imported issue cannot smuggle a second command.
+- `scope.allow` must name the paths. `**` is rejected.
+- If the change needs a protected path, set `risk: 3`; the scheduler escalates it
+  for human sign-off instead of implementing it autonomously.
+- A behavior change needs a test that fails on the base commit and passes on the
+  patch. The controller enforces this.
+- `demo` is only for the deterministic fake runner used by tests, smoke runs, and
+  canaries. Real agents ignore it.
+
+Commands:
+
+```bash
+econ dev validate --all
+econ dev list
+econ dev run --task DEV-0001
+econ dev run --task DEV-0001 --shadow
+econ dev daemon --once
+```

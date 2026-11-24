@@ -1,0 +1,41 @@
+name: dev-maintenance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 3 * * *"
+
+concurrency:
+  group: dev-maintenance
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Maintenance gate
+        run: python -m econ.cli dev maintenance --create-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Persist dashboard
+        if: always()
+        run: |
+          git config user.name "econ-dev-bot"
+          git config user.email "econ-dev-bot@users.noreply.github.com"
+          git add reports/dev_dashboard.md reports/dev_dashboard.html
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): maintenance dashboard [skip ci]"
+            git push
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

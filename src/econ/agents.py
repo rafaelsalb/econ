@@ -9,8 +9,53 @@ import yaml
 from . import config
 
 AGENTS_FILE = config.ROOT / "config" / "agents.yaml"
+DEV_AGENTS_FILE = config.ROOT / "config" / "dev_agents.yaml"
 RENDER_DIR = config.ROOT / ".opencode" / "agents"
 DEFAULT_AGENT_PREFIX = "econ-"
+DEV_AGENT_PREFIX = "dev-"
+
+# Deny rules applied after allows. The last matching permission rule wins, so
+# these are the backstop even when an agent has a broad read/edit pattern.
+_SECRET_DENIES: tuple[dict, ...] = (
+    {"action": "read", "resource": "**/.env", "effect": "deny"},
+    {"action": "read", "resource": "**/.env.*", "effect": "deny"},
+    {"action": "read", "resource": "*.env", "effect": "deny"},
+    {"action": "read", "resource": "*.env.*", "effect": "deny"},
+    {"action": "read", "resource": "~/.ssh/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.config/econ/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.local/share/opencode/**", "effect": "deny"},
+)
+
+_DANGEROUS_SHELL: tuple[dict, ...] = (
+    {"action": "shell", "resource": "git push *", "effect": "deny"},
+    {"action": "shell", "resource": "git reset --hard *", "effect": "deny"},
+    {"action": "shell", "resource": "git clean *", "effect": "deny"},
+    {"action": "shell", "resource": "rm *", "effect": "deny"},
+    {"action": "shell", "resource": "sudo *", "effect": "deny"},
+    {"action": "shell", "resource": "su *", "effect": "deny"},
+    {"action": "shell", "resource": "docker *", "effect": "deny"},
+    {"action": "shell", "resource": "podman *", "effect": "deny"},
+    {"action": "shell", "resource": "pip install *", "effect": "deny"},
+    {"action": "shell", "resource": "uv *", "effect": "deny"},
+    {"action": "shell", "resource": "curl *", "effect": "deny"},
+    {"action": "shell", "resource": "wget *", "effect": "deny"},
+    {"action": "shell", "resource": "ssh *", "effect": "deny"},
+    {"action": "shell", "resource": "scp *", "effect": "deny"},
+    {"action": "shell", "resource": "chmod *", "effect": "deny"},
+    {"action": "shell", "resource": "chown *", "effect": "deny"},
+)
+
+_GENERIC_DENIES: tuple[dict, ...] = (
+    {"action": "external_directory", "resource": "*", "effect": "deny"},
+    {"action": "webfetch", "resource": "*", "effect": "deny"},
+    {"action": "websearch", "resource": "*", "effect": "deny"},
+    {"action": "question", "resource": "*", "effect": "deny"},
+    {"action": "skill", "resource": "*", "effect": "deny"},
+    {"action": "execute", "resource": "*", "effect": "deny"},
+    {"action": "generate_image", "resource": "*", "effect": "deny"},
+    {"action": "edit", "resource": ".git/**", "effect": "deny"},
+    {"action": "edit", "resource": "**/.git/**", "effect": "deny"},
+)
 
 
 @dataclass(frozen=True)
@@ -23,10 +68,13 @@ class AgentSpec:
     steps: int
     sandbox: str
     timeout_s: int
+    prefix: str = DEFAULT_AGENT_PREFIX
+    mode: str = "all"
+    hidden: bool = True
 
     @property
     def agent_id(self) -> str:
-        return f"{DEFAULT_AGENT_PREFIX}{self.name}"
+        return f"{self.prefix}{self.name}"
 
     @property
     def selector(self) -> str:
@@ -40,11 +88,23 @@ def load_config(path: Path | None = None) -> dict:
     return yaml.safe_load(path.read_text())
 
 
-def agents(cfg: dict | None = None) -> list[AgentSpec]:
+def load_dev_config(path: Path | None = None) -> dict:
+    return load_config(path or DEV_AGENTS_FILE)
+
+
+def agents(
+    cfg: dict | None = None,
+    *,
+    prefix: str = DEFAULT_AGENT_PREFIX,
+    root: Path | None = None,
+) -> list[AgentSpec]:
     cfg = cfg or load_config()
+    root = root or config.ROOT
     defaults = cfg.get("defaults", {})
     out = []
     for name, raw in cfg.get("agents", {}).items():
+        if raw.get("disabled"):
+            continue
         model = raw.get("model", defaults.get("model"))
         if not model or "#" in model:
             raise ValueError(f"{name}: model must be provider/model without #variant")
@@ -53,48 +113,64 @@ def agents(cfg: dict | None = None) -> list[AgentSpec]:
             AgentSpec(
                 name=name,
                 description=raw.get("description", ""),
-                prompt_path=config.ROOT / raw["prompt"],
+                prompt_path=root / raw["prompt"],
                 model=model,
                 variant=variant,
                 steps=int(raw.get("steps", defaults.get("steps", 12))),
                 sandbox=raw.get("sandbox", defaults.get("sandbox", "offline")),
                 timeout_s=int(raw.get("timeout_s", defaults.get("timeout_s", 900))),
+                prefix=prefix,
+                mode=raw.get("mode", defaults.get("mode", "all")),
+                hidden=bool(raw.get("hidden", defaults.get("hidden", True))),
             )
         )
     return out
 
 
-def _permissions(raw: dict) -> list[dict]:
-    perms = [{"action": "*", "resource": "*", "effect": "deny"}]
-    p = raw.get("permissions", {})
+def dev_agents(cfg: dict | None = None, *, root: Path | None = None) -> list[AgentSpec]:
+    return agents(cfg or load_dev_config(), prefix=DEV_AGENT_PREFIX, root=root)
+
+
+def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
+    defaults = defaults or {}
+    perms: list[dict] = [{"action": "*", "resource": "*", "effect": "deny"}]
+    p = {**(defaults.get("permissions", {})), **raw.get("permissions", {})}
     for path in p.get("read", []):
         perms.append({"action": "read", "resource": path, "effect": "allow"})
     for path in p.get("edit", []):
         perms.append({"action": "edit", "resource": path, "effect": "allow"})
     for cmd in p.get("shell", []):
         perms.append({"action": "shell", "resource": cmd, "effect": "allow"})
-    for action in [
-        "external_directory",
-        "webfetch",
-        "websearch",
-        "question",
-        "skill",
-        "subagent",
-    ]:
-        perms.append({"action": action, "resource": "*", "effect": "deny"})
+
+    subagents = p.get("subagents", [])
+    if subagents:
+        for agent_id in subagents:
+            perms.append(
+                {"action": "subagent", "resource": agent_id, "effect": "allow"}
+            )
+        perms.append({"action": "subagent", "resource": "*", "effect": "deny"})
+    else:
+        perms.append({"action": "subagent", "resource": "*", "effect": "deny"})
+
+    perms.extend(_GENERIC_DENIES)
+    perms.extend(_SECRET_DENIES)
+    perms.extend(_DANGEROUS_SHELL)
+    perms.extend(p.get("deny", []))
     return perms
 
 
-def render_agent(spec: AgentSpec, raw: dict) -> str:
+def render_agent(spec: AgentSpec, raw: dict, defaults: dict | None = None) -> str:
     body = spec.prompt_path.read_text().strip()
-    front = {
+    front: dict = {
         "description": spec.description,
-        "mode": "all",
+        "mode": spec.mode,
         "model": spec.selector,
-        "hidden": True,
+        "hidden": spec.hidden,
         "steps": spec.steps,
-        "permissions": _permissions(raw),
+        "permissions": _permissions(raw, defaults),
     }
+    if raw.get("color"):
+        front["color"] = raw["color"]
     return (
         "---\n"
         + yaml.safe_dump(front, sort_keys=False, default_flow_style=False).strip()
@@ -104,19 +180,35 @@ def render_agent(spec: AgentSpec, raw: dict) -> str:
     )
 
 
-def render_all(cfg: dict | None = None) -> dict[Path, str]:
+def render_all(
+    cfg: dict | None = None,
+    *,
+    render_dir: Path | None = None,
+    prefix: str = DEFAULT_AGENT_PREFIX,
+    root: Path | None = None,
+) -> dict[Path, str]:
     cfg = cfg or load_config()
+    root = root or config.ROOT
+    render_dir = render_dir or (root / ".opencode" / "agents")
     raw_agents = cfg.get("agents", {})
+    defaults = cfg.get("defaults", {})
     out = {}
-    for spec in agents(cfg):
-        path = RENDER_DIR / f"{spec.agent_id}.md"
-        out[path] = render_agent(spec, raw_agents[spec.name])
+    for spec in agents(cfg, prefix=prefix, root=root):
+        path = render_dir / f"{spec.agent_id}.md"
+        out[path] = render_agent(spec, raw_agents[spec.name], defaults)
     return out
 
 
-def write_all() -> list[Path]:
-    rendered = render_all()
-    RENDER_DIR.mkdir(parents=True, exist_ok=True)
+def write_all(
+    cfg: dict | None = None,
+    *,
+    render_dir: Path | None = None,
+    prefix: str = DEFAULT_AGENT_PREFIX,
+    root: Path | None = None,
+) -> list[Path]:
+    rendered = render_all(cfg, render_dir=render_dir, prefix=prefix, root=root)
+    target = render_dir or ((root or config.ROOT) / ".opencode" / "agents")
+    target.mkdir(parents=True, exist_ok=True)
     written = []
     for path, text in rendered.items():
         path.write_text(text)
@@ -124,18 +216,52 @@ def write_all() -> list[Path]:
     return written
 
 
-def check_all() -> list[str]:
+def check_all(
+    cfg: dict | None = None,
+    *,
+    render_dir: Path | None = None,
+    prefix: str = DEFAULT_AGENT_PREFIX,
+    root: Path | None = None,
+) -> list[str]:
     problems = []
-    rendered = render_all()
+    rendered = render_all(cfg, render_dir=render_dir, prefix=prefix, root=root)
     for path, text in rendered.items():
         if not path.exists():
             problems.append(f"missing generated agent: {path}")
         elif path.read_text() != text:
             problems.append(f"stale generated agent: {path}")
-    extra = set(RENDER_DIR.glob("econ-*.md")) - set(rendered)
+    target = render_dir or ((root or config.ROOT) / ".opencode" / "agents")
+    extra = set(target.glob(f"{prefix}*.md")) - set(rendered)
     for path in sorted(extra):
         problems.append(f"unexpected agent file: {path}")
     return problems
+
+
+def render_dev_all(cfg: dict | None = None, *, root: Path | None = None) -> dict[Path, str]:
+    return render_all(
+        cfg or load_dev_config(),
+        render_dir=(root or config.ROOT) / ".opencode" / "agents",
+        prefix=DEV_AGENT_PREFIX,
+        root=root,
+    )
+
+
+def write_dev_all(cfg: dict | None = None, *, root: Path | None = None) -> list[Path]:
+    return write_all(
+        cfg or load_dev_config(),
+        render_dir=(root or config.ROOT) / ".opencode" / "agents",
+        prefix=DEV_AGENT_PREFIX,
+        root=root,
+    )
+
+
+def check_dev_all(cfg: dict | None = None, *, root: Path | None = None) -> list[str]:
+    return check_all(
+        cfg or load_dev_config(),
+        render_dir=(root or config.ROOT) / ".opencode" / "agents",
+        prefix=DEV_AGENT_PREFIX,
+        root=root,
+    )
 
 
 def _model_catalog() -> dict:
@@ -145,13 +271,12 @@ def _model_catalog() -> dict:
     return json.loads(path.read_text())
 
 
-def validate_variants(cfg: dict | None = None) -> list[str]:
-    cfg = cfg or load_config()
+def _validate_variants(cfg: dict, *, root: Path | None = None) -> list[str]:
     cache = _model_catalog()
     if not cache:
         return ["model catalog cache unavailable; variant check skipped"]
     problems = []
-    for spec in agents(cfg):
+    for spec in agents(cfg, root=root):
         provider, model = spec.model.split("/", 1)
         entry = cache.get(provider, {}).get("models", {}).get(model)
         if not entry:
@@ -168,6 +293,14 @@ def validate_variants(cfg: dict | None = None) -> list[str]:
                 f"{spec.name}: variant {spec.variant} not available; choices={efforts}"
             )
     return problems
+
+
+def validate_variants(cfg: dict | None = None, *, root: Path | None = None) -> list[str]:
+    return _validate_variants(cfg or load_config(), root=root)
+
+
+def validate_dev_variants(cfg: dict | None = None, *, root: Path | None = None) -> list[str]:
+    return _validate_variants(cfg or load_dev_config(), root=root)
 
 
 def agent_argv(spec: AgentSpec, message: str) -> list[str]:

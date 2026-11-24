@@ -347,6 +347,10 @@ def main() -> None:
     p.add_argument("--api-key-file", default=None, help="file containing OPENCODE_API_KEY")
     p.set_defaults(func=cmd_sandbox)
 
+    from .dev.cli import add_parser as add_dev_parser
+
+    add_dev_parser(sub)
+
     args = parser.parse_args()
     args.func(args)
 

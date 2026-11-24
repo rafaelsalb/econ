@@ -1,1 +1,0 @@
-Auth precedence probe. Write result.json.

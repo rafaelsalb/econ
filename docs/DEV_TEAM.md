@@ -1,0 +1,210 @@
+# Multi-agent development team
+
+The development team is a deterministic pipeline, not a free-form agent swarm.
+Agents produce typed role artifacts; a Python controller owns state, gates,
+budgets, and merging. This mirrors the research loop: the driver is
+deterministic, the LLM is advisory.
+
+## Why this shape
+
+A multi-agent system fails when agents negotiate with each other. It works when:
+
+- each role has a narrow input packet and a typed output artifact;
+- a fresh session gives reviewers no shared context with the implementer;
+- tests, policy checks, and protected paths decide whether work advances;
+- the scheduler, not an agent, merges;
+- every action is recorded under `runs/dev/`.
+
+The controller lives in `src/econ/dev/`. The agent definitions live in
+`config/dev_agents.yaml` and `config/prompts/dev/`; rendered files in
+`.opencode/agents/dev-*.md` are generated and must not be hand-edited.
+
+## Roster
+
+| Agent | Mode | Job |
+|---|---|---|
+| `dev-lead` | primary | Plan, set risk, dispatch; never edits code |
+| `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
+| `dev-implementer` | subagent | Smallest patch plus a red-green test |
+| `dev-reviewer` | subagent | Blind diff review on `qwen3.8-max` |
+| `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `kimi-k3` |
+| `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance |
+| `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism |
+| `dev-scribe` | subagent | Docs only, after approval |
+| `dev-triage` | subagent | Turns a GitHub issue into a task contract |
+| `dev-reproducer` | subagent | Turns a bug into a failing test |
+
+Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
+this roster. The research sandbox mounts only `econ-*.md`, so development agents
+are not visible inside it.
+
+## Task contract
+
+A runnable task is a YAML contract under `tasks/ready/`:
+
+```yaml
+id: DEV-0001
+title: ...
+status: ready
+risk: 1
+priority: 50
+created: 2026-11-24
+goal: |
+  Observable behavior that must be true.
+acceptance:
+  - python -m pytest tests/test_example.py -q
+scope:
+  allow: ["src/econ/example.py", "tests/test_example.py"]
+  deny: ["specs/**", "data/**", "registry/**", "eval/**"]
+limits: {max_review_rounds: 2, max_usd: 5, max_changed_files: 10, max_diff_lines: 300}
+```
+
+Acceptance commands are parsed and executed without a shell. Shell
+metacharacters are rejected, so an imported issue cannot smuggle a second
+command. `scope.allow` must name explicit paths; `**` is rejected. A task that
+needs a protected path is risk 3.
+
+Risk tiers: 0 docs, 1 tests/refactor, 2 behavior, 3 protected/science.
+
+## State machine
+
+```
+READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY → MERGE → DONE
+                    ↑          │        │
+                    └─ changes ┘        └─ blocked → ESCALATED
+```
+
+- Each task gets a branch and worktree from a frozen base commit.
+- The implementer commits through the controller, not its own git commands.
+- The reviewer sees the diff and test evidence, not the implementer's rationale.
+- The verifier runs in a *fresh* worktree at the patch commit.
+- The controller applies deterministic gates; a green agent opinion is not
+  enough.
+- Merge is a serial queue. The branch is rebased onto `main` and the full gate
+  is rerun before a fast-forward merge.
+- Max two review rounds and one replan; then a human gets an escalation.
+
+## Gates
+
+| Gate | What it proves |
+|---|---|
+| `patch` / `patch_apply` | non-empty and applies to a clean base |
+| `scope` | every changed file is explicitly allowed |
+| `protected` | no scientific-contract path is touched |
+| `dependencies` | dependency changes need human sign-off |
+| `secrets` | no key-like strings in the diff |
+| `size` | task and policy limits |
+| `tests_present` | behavior changes include tests |
+| `acceptance` | the task's commands pass |
+| `full_tests` | no regression in the suite |
+| `red_green` | new tests fail on the base commit |
+| `econ_check` | vintage/purge/registry gates still pass |
+| `agents_check` | generated rosters are current |
+| `lockbox` | one-time ledger unchanged |
+| `registry_append_only` | no historical registry mutation |
+
+`red_green` is the anti-reward-hacking gate: a new test that already passes on
+the base commit proves nothing.
+
+## Autonomy policy
+
+`config/dev_policy.yaml`:
+
+- risk 0/1: auto-merge after gates and one approval;
+- risk 2: two independent approvals on different models, ≤12 files and ≤400
+  lines, no protected path;
+- risk 3: always escalated for human sign-off; never auto-merged.
+
+The controller enforces this from structured gate results, not from prose.
+
+## Commands
+
+```bash
+econ dev validate --all --canaries
+econ dev list
+econ dev run --task DEV-0001 --fake        # deterministic local pipeline
+econ dev run --task DEV-0001               # real OpenCode agents
+econ dev run --task DEV-0001 --shadow      # run everything, never merge
+econ dev daemon --once --max-parallel 2    # one scheduler tick
+econ dev daemon --max-parallel 2           # continuous scheduler
+econ dev pause --reason "review queue"     # stop picking new work
+econ dev resume
+econ dev status
+econ dev report --write                    # reports/dev_dashboard.{md,html}
+econ dev report --digest --days 1
+econ dev sync --pull --promote             # GitHub issues → task contracts
+econ dev sync --push                       # status back to issues
+econ dev canary --run --fake               # held-out pipeline evaluation
+econ dev smoke --fake                      # one end-to-end fake-agent run
+econ dev maintenance --create-issue        # nightly deterministic gate
+econ dev release --bump patch --dry-run
+econ dev doctor
+```
+
+`make gate` runs tests, `econ check`, research and development roster drift, and
+`dev validate --all`. CI runs the same command.
+
+## Worktrees, container executor, and budgets
+
+- Local executor: `git worktree` per task under `runs/dev/worktrees/`.
+- Docker executor: `econ dev run --task ... --executor docker` uses
+  `econ-agent:latest`, mounts only the worktree read-write, the rendered agents
+  read-only, drops all capabilities, uses the internal proxy network, and keeps
+  the worktree home in `.dev/home`.
+- Budgets: per-task `limits.max_usd`, daily `budget.daily_usd`, and a hard stop
+  in `_record_agent`. The ledger is `runs/dev/budget.json`.
+- Scheduler locks: `runs/dev/.daemon.lock`, merge lock
+  `runs/dev/.merge.lock`, pause switch `runs/dev/PAUSED`.
+
+## Artifacts
+
+```
+runs/dev/tasks/<task-id>/
+  task.yaml / task.sha256
+  state.json
+  events.jsonl
+  packets/latest.md
+  out/{lead,architect,implementer,review-*,verifier,science_guard}.json
+  patch.diff
+  test-report.json
+  gates-pre.json / gates-post.json / gates-merge.json
+  cost.json
+  decision.json
+  error.json            # on failure
+runs/dev/index.jsonl    # append-only outcome ledger for metrics
+reports/dev_dashboard.{md,html}
+```
+
+`runs/` is gitignored. The dashboard and task files are the durable record.
+
+## GitHub intake
+
+Issues labeled `dev:ready` may contain a fenced YAML task contract. `sync
+--pull` imports it as `proposed`; with `github.auto_promote: true` and an author
+in `trusted_authors`, it goes straight to `ready`. The issue body is untrusted
+data: only the YAML contract fields are used, and shell metacharacters are
+rejected. `sync --push` comments status back and closes the issue on `done`.
+
+## Scheduled automation
+
+- `.github/workflows/dev-daemon.yml` runs a scheduler tick every six hours and
+  on `dev:ready` labels; it imports issues, runs up to two workers, and commits
+  the dashboard and task state.
+- `.github/workflows/dev-maintenance.yml` runs the deterministic gate daily and
+  opens an issue on failure. It never generates a ready task automatically.
+- `.github/workflows/release.yml` is manual and deterministic; it bumps the
+  version, updates `CHANGELOG.md`, runs the gate, commits, and tags.
+
+Required repository secret: `OPENCODE_API_KEY`. The daemon workflow also uses
+the default `GITHUB_TOKEN` with `contents: write` and `issues: write`.
+
+## What is deliberately not automated
+
+- Changing `specs/`, validation gates, data semantics, the lockbox, or the
+  sandbox boundary. A risk 3 task is escalated.
+- Reopening the lockbox or rewriting `registry/`.
+- Release pushes without a human workflow dispatch.
+- Accepting a task whose acceptance criteria are prose.
+
+Those are the rules of the game; automating them away would invalidate the
+research claims.

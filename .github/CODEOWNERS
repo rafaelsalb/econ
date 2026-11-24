@@ -1,0 +1,17 @@
+* @rafaelsalb
+
+# Scientific contract: human sign-off required.
+/specs/ @rafaelsalb
+/data/ @rafaelsalb
+/registry/ @rafaelsalb
+/eval/ @rafaelsalb
+/src/econ/evaluate.py @rafaelsalb
+/src/econ/critics.py @rafaelsalb
+/src/econ/diagnostics.py @rafaelsalb
+/src/econ/loop.py @rafaelsalb
+/src/econ/lockbox.py @rafaelsalb
+/src/econ/vintage.py @rafaelsalb
+/src/econ/checks.py @rafaelsalb
+/sandbox/ @rafaelsalb
+/config/dev_policy.yaml @rafaelsalb
+/config/dev_agents.yaml @rafaelsalb

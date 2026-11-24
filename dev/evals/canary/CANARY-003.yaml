@@ -1,0 +1,45 @@
+id: CANARY-003
+title: Survive one review round and merge a risk-2 change
+status: proposed
+risk: 2
+priority: 50
+created: 2026-11-24
+goal: |
+  Add a formatted label helper, require two independent reviews, and prove the
+  review loop can request a revision before approving.
+acceptance:
+  - python -m pytest tests/test_canary_label.py -q
+scope:
+  allow:
+    - src/econ/canary_label.py
+    - tests/test_canary_label.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 1
+  max_changed_files: 4
+  max_diff_lines: 80
+source:
+  kind: canary
+  number: 3
+demo:
+  fail_first_rounds: 1
+  files:
+    - path: src/econ/canary_label.py
+      content: |
+        from __future__ import annotations
+
+
+        def label(name: str, value: int) -> str:
+            return f"{name}={value}"
+    - path: tests/test_canary_label.py
+      content: |
+        from econ.canary_label import label
+
+
+        def test_label():
+            assert label("x", 1) == "x=1"

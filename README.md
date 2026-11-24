@@ -114,6 +114,25 @@ Then pass `--api-key-file ~/.config/econ/opencode.key` to `econ sandbox run` or
 `econ loop --agents`. The key is set only in the sandbox process; the audit
 records the variable name, never the key.
 
+## Multi-agent development team
+
+Development itself is automated by a second, separate roster. A deterministic
+controller runs tasks through plan → implement → blind review → independent
+verify → integrity gates → merge. Agents cannot merge, touch the lockbox, or
+change the rules of the game. Risk 3 changes are always escalated.
+
+```bash
+econ dev validate --all --canaries
+econ dev smoke --fake                 # full pipeline, no model credits
+econ dev run --task DEV-0001 --fake   # one task end to end
+econ dev daemon --once --max-parallel 2
+econ dev report --write               # reports/dev_dashboard.html
+```
+
+The roster is `config/dev_agents.yaml`; tasks are YAML contracts in
+`tasks/`; the policy and protected paths are in `config/dev_policy.yaml`.
+The full operating manual is `docs/DEV_TEAM.md`.
+
 ## Quickstart
 
 ```bash
@@ -184,9 +203,17 @@ anchor rather than independent information. That is why the terminal state is
 
 ```
 catalog.yaml              series definitions and release lags
-config/agents.yaml        single source of truth for the agent roster
-config/prompts/           role system prompts
+config/agents.yaml        single source of truth for the research agent roster
+config/dev_agents.yaml    single source of truth for the development roster
+config/dev_policy.yaml    protected paths, auto-merge policy, budgets, gates
+config/prompts/           research role system prompts
+config/prompts/dev/       development role system prompts
 .opencode/agents/         rendered native agents (generated)
+.opencode/commands/dev/   /dev/task, /dev/review, /dev/verify, ...
+tasks/                    development task contracts (proposed/ready/done/...)
+dev/evals/canary/         held-out pipeline canaries
+src/econ/dev/             deterministic development controller
+docs/DEV_TEAM.md          development team operating manual
 opencode.jsonc            default model for interactive sessions
 sandbox/                  Dockerfile, CONNECT proxy, network setup
 data/raw/                 immutable API pulls

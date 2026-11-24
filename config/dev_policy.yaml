@@ -1,0 +1,88 @@
+# Multi-agent development policy
+#
+# This file is the contract the deterministic development controller enforces.
+# It is deliberately separate from the research agent roster in agents.yaml.
+version: 1
+
+branch: main
+
+# Changes touching these paths are outside the autonomous merge policy. They
+# require a human sign-off even when every automated gate is green.
+protected:
+  - "specs/**"
+  - "data/**"
+  - "registry/**"
+  - "eval/**"
+  - "reports/final_report.md"
+  - "reports/lockbox_report.md"
+  - "config/dev_policy.yaml"
+  - "config/dev_agents.yaml"
+  - "src/econ/evaluate.py"
+  - "src/econ/critics.py"
+  - "src/econ/diagnostics.py"
+  - "src/econ/loop.py"
+  - "src/econ/lockbox.py"
+  - "src/econ/vintage.py"
+  - "src/econ/checks.py"
+  - "sandbox/**"
+
+auto_merge:
+  # Risk 0-2 can merge automatically when every gate passes.
+  max_risk: 2
+  risk_2_max_changed_files: 12
+  risk_2_max_diff_lines: 400
+  # Independent reviews required by risk tier.
+  reviewers:
+    0: 1
+    1: 1
+    2: 2
+  second_reviewer_model: opencode-go/kimi-k3
+  # Risk 3 is never auto-merged.
+  risk_3: human
+
+budget:
+  daily_usd: 20.0
+  per_task_usd: 5.0
+  max_review_rounds: 2
+  max_agent_steps: 24
+  max_wall_seconds: 2400
+
+gates:
+  python: ".venv/bin/python"
+  full_tests: true
+  risk0_skip_full_tests: true
+  full_test_command: "python -m pytest -q"
+  check_command: "python -m econ.cli check"
+  agents_check_command: "python -m econ.cli agents check"
+  dev_validate_command: "python -m econ.cli dev validate --all"
+  timeout_s: 900
+  require_tests_for_risk: 1
+  red_green: true
+  max_changed_files: 25
+  max_diff_lines: 800
+  dependency_files:
+    - "pyproject.toml"
+    - "uv.lock"
+    - "requirements.txt"
+    - "requirements-dev.txt"
+  secret_patterns:
+    - "sk-[A-Za-z0-9]{16,}"
+    - "gh[pousr]_[A-Za-z0-9]{16,}"
+    - "-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----"
+    - "OPENCODE_API_KEY\\s*=\\s*\\S+"
+
+github:
+  label: "dev:ready"
+  auto_promote: false
+  trusted_authors: []
+  comment: true
+
+executor:
+  default: local
+  docker_image: econ-agent:latest
+  network: econ-internal
+  cpus: 2
+  memory: 4g
+  pids: 256
+  timeout_s: 1200
+  user: "1000:1000"
