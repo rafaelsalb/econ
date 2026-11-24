@@ -154,7 +154,7 @@ Evidence:
 |---|---|---|
 | 0 | Baseline, CI, protected paths, gate | `make gate` passes; `.github/workflows/ci.yml`; `.github/CODEOWNERS` |
 | 1 | Dev roster, prompts, commands, task schema, canaries | `config/dev_agents.yaml`; 3/3 canaries pass; `econ dev validate --all` |
-| 2 | Worktree pipeline, blind review, verifier, gates, shadow mode | fake end-to-end merge; `runs/dev/` artifacts; 105 tests |
+| 2 | Worktree pipeline, blind review, verifier, gates, shadow mode | fake end-to-end merge; `runs/dev/` artifacts; 106 tests |
 | 3 | Scheduler, budgets, pause/lock, GitHub sync, dashboard, maintenance, release | `econ dev daemon --once`; `econ dev sync --pull`; dashboard files |
 | 4 | Parallel execution, Docker executor, scheduled workflows, release bot | two-task parallel test; `econ-agent:latest` rebuilt with git; 4 workflows; `v0.2.0` release |
 
@@ -183,7 +183,7 @@ the data and code hashes, failures and row counts. The curated parquet hash is
 in `data/curated/manifest.json`. Re-running the same command on the same data
 and code reproduces the id.
 
-Tests: **105 passed**. `make gate`, `econ agents check`, `econ dev agents check`,
+Tests: **106 passed**. `make gate`, `econ agents check`, `econ dev agents check`,
 and `econ check` pass. All three development canaries pass; the deterministic
 fake pipeline merges CANARY-001/002 in one round and CANARY-003 in two.
 
