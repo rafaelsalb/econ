@@ -1,0 +1,52 @@
+name: Development task
+description: A runnable contract for the multi-agent development pipeline
+title: "dev: "
+labels: ["dev:ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste a complete task contract in the fenced YAML block. The daemon
+        rejects prose-only acceptance, unbounded scope, shell metacharacters,
+        and risk 3 (protected science paths) without human sign-off.
+  - type: textarea
+    id: contract
+    attributes:
+      label: Task contract
+      description: Keep the fenced block. Edit every field.
+      value: |
+        ```yaml
+        id: DEV-0001
+        title: Short imperative title
+        status: proposed
+        risk: 1
+        priority: 50
+        created: 2026-11-24
+        goal: |
+          Observable behavior that must be true.
+        acceptance:
+          - python -m pytest tests/test_example.py -q
+        scope:
+          allow:
+            - src/econ/example.py
+            - tests/test_example.py
+          deny:
+            - specs/**
+            - data/**
+            - registry/**
+            - eval/**
+        limits:
+          max_review_rounds: 2
+          max_usd: 5
+          max_changed_files: 10
+          max_diff_lines: 300
+        ```
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I understand touching a protected path requires human sign-off.
+          required: true
