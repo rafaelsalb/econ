@@ -147,10 +147,13 @@ econ dev doctor
 ## Worktrees, container executor, and budgets
 
 - Local executor: `git worktree` per task under `runs/dev/worktrees/`.
+- Local agents run with a private OpenCode server (`--standalone`) so the
+  project root is pinned to the worktree, not the main checkout. Without it a
+  shared server can resolve edits back to `main`.
 - Docker executor: `econ dev run --task ... --executor docker` uses
-  `econ-agent:latest`, mounts only the worktree read-write, the rendered agents
-  read-only, drops all capabilities, uses the internal proxy network, and keeps
-  the worktree home in `.dev/home`.
+  `econ-agent:latest`, mounts only the worktree read-write, uses the worktree's
+  committed agents/config, drops all capabilities, uses the internal proxy
+  network, and keeps the worktree home in `.dev/home`.
 - Budgets: per-task `limits.max_usd`, daily `budget.daily_usd`, and a hard stop
   in `_record_agent`. The ledger is `runs/dev/budget.json`.
 - Scheduler locks: `runs/dev/.daemon.lock`, merge lock
