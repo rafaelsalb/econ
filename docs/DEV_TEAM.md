@@ -99,7 +99,9 @@ READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY 
 | `full_tests` | no regression in the suite |
 | `red_green` | new tests fail on the base commit |
 | `econ_check` | vintage/purge/registry gates still pass |
-| `agents_check` | generated rosters are current |
+| `agents_check` | generated research roster is current |
+| `dev_agents_check` | generated development roster is current |
+| `dev_validate` | every task contract in the worktree is valid |
 | `lockbox` | one-time ledger unchanged |
 | `registry_append_only` | no historical registry mutation |
 
