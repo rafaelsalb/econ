@@ -94,3 +94,19 @@ def test_docker_command_is_hardened_and_mounts_worktree(tmp_path):
     assert "docker.sock" not in joined
     assert "opencode" in cmd and "run" in cmd
     assert "dev-implementer" in cmd
+
+
+def test_docker_command_mounts_linked_worktree_metadata(tmp_path):
+    from econ.dev.workspace import Worktree
+
+    repo = make_repo(tmp_path / "repo")
+    worktree = Worktree.create(repo, "DOCKER1", base="main")
+    try:
+        cmd = DockerRunner(repo, DevPolicy()).command(
+            "reviewer", worktree.path, "review"
+        )
+        joined = " ".join(cmd)
+        assert f"{repo / '.git'}:{repo / '.git'}:rw" in joined
+        assert f"{worktree.path}:{worktree.path}:rw" in joined
+    finally:
+        worktree.remove()

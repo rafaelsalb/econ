@@ -120,6 +120,15 @@ class DockerRunner:
         ):
             (home / relative).mkdir(parents=True, exist_ok=True)
         cmd += ["-v", f"{home}:/home/econ:rw"]
+        # A linked worktree's `.git` file points at the main checkout's
+        # `.git/worktrees/<id>`, and that metadata points back at the host
+        # worktree path. Mount both at their host paths so git inside the
+        # container can resolve the linked-worktree graph.
+        git_marker = worktree / ".git"
+        if git_marker.is_file():
+            main_git = (self.repo / ".git").resolve()
+            cmd += ["-v", f"{main_git}:{main_git}:rw"]
+            cmd += ["-v", f"{worktree}:{worktree}:rw"]
         # The worktree already contains the committed `opencode.jsonc` and
         # `.opencode/agents` for its base commit. Mounting the main checkout's
         # copies would mask the task's own files and can create untracked files.
