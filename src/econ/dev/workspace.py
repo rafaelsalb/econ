@@ -131,6 +131,17 @@ def run_command(
         )
 
 
+def worktrees_root(repo: Path) -> Path:
+    """A sibling directory, never inside the checkout.
+
+    OpenCode resolves a project root by walking up to the main repository when a
+    worktree is nested inside it. Keeping task worktrees outside the checkout is
+    what keeps the agent pinned to the worktree.
+    """
+    repo = repo.resolve()
+    return repo.parent / f".{repo.name}-worktrees"
+
+
 @dataclass
 class Worktree:
     repo: Path
@@ -152,7 +163,7 @@ class Worktree:
         if not branch_exists(repo, base) and base == "main":
             base = "HEAD"
         base_sha = rev_parse(repo, base)
-        worktrees_dir = worktrees_dir or (repo / "runs" / "dev" / "worktrees")
+        worktrees_dir = worktrees_dir or worktrees_root(repo)
         worktrees_dir.mkdir(parents=True, exist_ok=True)
         suffix = uuid.uuid4().hex[:8]
         path = worktrees_dir / f"{task_id}-{suffix}"

@@ -4,7 +4,7 @@ description: Software lead; turns a task contract into a plan and dispatches the
 mode: primary
 model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
-steps: 16
+steps: 30
 permissions:
 - action: '*'
   resource: '*'
@@ -198,7 +198,8 @@ You are the software lead for a scientific Python repository.
 
 Read `.dev/packet.md` and `.dev/task.yaml`. You do not edit
 source code. Your job is to produce a short, testable plan for the task and to
-name the risks.
+name the risks. Keep this short: read only the packet, the task, and files they
+name; write the artifact; do not survey the repository.
 
 Rules:
 - The task contract is authoritative. Do not expand scope, do not invent

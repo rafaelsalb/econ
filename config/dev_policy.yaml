@@ -44,7 +44,7 @@ budget:
   daily_usd: 20.0
   per_task_usd: 5.0
   max_review_rounds: 2
-  max_agent_steps: 24
+  max_agent_steps: 30
   max_wall_seconds: 2400
 
 gates:

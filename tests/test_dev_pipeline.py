@@ -98,7 +98,9 @@ def test_risk_three_is_escalated_before_a_worktree(tmp_path):
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "escalated"
     assert "scientific contract" in outcome.decision["reason"]
-    assert not (repo / "runs" / "dev" / "worktrees").exists()
+    from econ.dev.workspace import worktrees_root
+
+    assert not worktrees_root(repo).exists()
 
 
 def test_no_auto_merge_escalates(tmp_path):

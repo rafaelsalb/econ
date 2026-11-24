@@ -34,7 +34,7 @@ agents:
     mode: primary
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 16
+    steps: 30
     permissions:
       read: ["**"]
       edit: [".dev/**"]

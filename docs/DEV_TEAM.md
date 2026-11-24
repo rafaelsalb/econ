@@ -148,7 +148,9 @@ econ dev doctor
 
 ## Worktrees, container executor, and budgets
 
-- Local executor: `git worktree` per task under `runs/dev/worktrees/`.
+- Local executor: `git worktree` per task under a sibling
+  `.<repo>-worktrees/` directory. Worktrees are deliberately outside the
+  checkout so OpenCode cannot resolve the project root back to `main`.
 - Local agents run with a private OpenCode server (`--standalone`) so the
   project root is pinned to the worktree, not the main checkout. Without it a
   shared server can resolve edits back to `main`.

@@ -23,6 +23,7 @@ from .workspace import (
     merge_ff,
     rev_parse,
     worktree_status,
+    worktrees_root,
 )
 
 
@@ -280,7 +281,6 @@ class DevPipeline:
             self.repo,
             f"{task.id}-verify",
             base=commit,
-            worktrees_dir=self.repo / "runs" / "dev" / "worktrees",
         )
         self._write_task(verify, task)
         self._prepare_review(verify, task, artifacts, diff=diff)
@@ -975,7 +975,7 @@ class DevPipeline:
             },
             "worktrees": [
                 worktree_status(p)
-                for p in sorted((self.repo / "runs" / "dev" / "worktrees").glob("*"))
+                for p in sorted(worktrees_root(self.repo).glob("*"))
                 if p.is_dir()
             ],
         }
