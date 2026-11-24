@@ -40,10 +40,11 @@ auto_merge:
   max_risk: 2
   risk_2_max_changed_files: 12
   risk_2_max_diff_lines: 400
-  # Independent reviews required by risk tier.
+  # Independent reviews required by risk tier. Risk 0/1 merges on gates plus
+  # the blind clean-tree verifier; LLM reviewers are a risk-2 control.
   reviewers:
-    0: 1
-    1: 1
+    0: 0
+    1: 0
     2: 2
   second_reviewer_model: opencode-go/kimi-k3
   # Risk 3 is never auto-merged.

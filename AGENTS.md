@@ -105,11 +105,14 @@ The development controller puts the worktree `src/` on `PYTHONPATH` and the main
 - The controller creates an isolated worktree and records run artifacts under
   `.dev/` (gitignored). Agents write role outputs to `.dev/out/<role>.json` and
   never edit `.git/`, commit, push, or merge.
-- Roles: PM interviews and drafts; lead/architect design; reproducer writes a
-  failing test; implementer writes the smallest patch plus a red-green test;
-  reviewer is blind to the implementer's rationale; verifier applies the patch
-  to a clean base and runs acceptance independently; science guard checks
-  protected paths, the lockbox, registry append-only, and determinism.
+- Roles: PM interviews and drafts; lead/architect design (risk ≥ 2);
+  reproducer writes a failing test before any fix on bug-sourced risk 0/1
+  contracts; implementer writes the smallest patch plus a red-green test;
+  reviewer is blind to the implementer's rationale (risk ≥ 2); verifier applies
+  the patch to a clean base and runs acceptance independently on every tier;
+  science guard checks protected paths, the lockbox, registry append-only, and
+  determinism (risk ≥ 2). Risk 0/1 buys no lead, architect, or reviewer: the
+  gates, not the agents, are the authority.
 - The deterministic controller (`src/econ/dev/`) decides whether to merge. Risk 3
   is always escalated for human sign-off. See `config/dev_policy.yaml` and
   `tasks/README.md`.

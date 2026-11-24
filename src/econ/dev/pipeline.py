@@ -488,6 +488,30 @@ class DevPipeline:
             raise AgentProtocolError("science guard returned invalid verdict")
         return payload
 
+    def _run_reproducer(
+        self,
+        worktree: Worktree,
+        task: Task,
+        artifacts: RunArtifacts,
+    ) -> dict:
+        packet = (
+            "# Bug reproduction\n\n"
+            f"Task: {task.id} — {task.title}\n\n"
+            "Write the minimal failing test that reproduces the reported bug. "
+            "Do not fix it. Report the test file, the failing command, and the "
+            "observed failure."
+        )
+        self._write_packet(worktree, task, packet, round_no=0)
+        payload = self._agent(
+            "reproducer", worktree, task, artifacts, packet, round_no=0
+        )
+        _require_fields(
+            "reproducer",
+            payload,
+            {"role", "reproduced", "test_file", "failing_command", "observed_failure"},
+        )
+        return payload
+
     # -- main loop ---------------------------------------------------------
     def _execute(self, task: Task, artifacts: RunArtifacts) -> Outcome:
         started = time.time()
@@ -511,31 +535,31 @@ class DevPipeline:
         )
 
         try:
-            lead = self._agent(
-                "lead",
-                worktree,
-                task,
-                artifacts,
-                "Produce a short plan for this task. Do not edit code.",
-            )
-            _require_fields("lead", lead, {"role", "plan", "escalate"})
-            if lead.get("escalate"):
-                outcome = Outcome(
-                    task_id=task.id,
-                    status="escalated",
-                    decision={
-                        "reason": lead.get("reason") or "lead escalated the task",
-                        "risk": task.risk,
-                    },
-                    run_dir=artifacts.run_dir,
-                    worktree=worktree.path,
-                    branch=worktree.branch,
-                )
-                return self._escalate(
-                    task, artifacts, outcome, outcome.decision["reason"]
-                )
-
             if task.risk >= 2:
+                lead = self._agent(
+                    "lead",
+                    worktree,
+                    task,
+                    artifacts,
+                    "Produce a short plan for this task. Do not edit code.",
+                )
+                _require_fields("lead", lead, {"role", "plan", "escalate"})
+                if lead.get("escalate"):
+                    outcome = Outcome(
+                        task_id=task.id,
+                        status="escalated",
+                        decision={
+                            "reason": lead.get("reason") or "lead escalated the task",
+                            "risk": task.risk,
+                        },
+                        run_dir=artifacts.run_dir,
+                        worktree=worktree.path,
+                        branch=worktree.branch,
+                    )
+                    return self._escalate(
+                        task, artifacts, outcome, outcome.decision["reason"]
+                    )
+
                 architect = self._agent(
                     "architect",
                     worktree,
@@ -547,6 +571,29 @@ class DevPipeline:
                     "architect", architect, {"role", "design", "files", "test_plan"}
                 )
                 artifacts.write_json("out/architect.json", architect)
+
+            if task.risk < 2 and task.source.kind == "bug":
+                # Prove the bug before fixing it: no failing test, no patch.
+                repro = self._run_reproducer(worktree, task, artifacts)
+                artifacts.write_json("out/reproducer.json", repro)
+                if not repro.get("reproduced"):
+                    reason = (
+                        "bug not reproduced before the fix: "
+                        + str(repro.get("observed_failure") or "no failing test")
+                    )
+                    return self._escalate(
+                        task,
+                        artifacts,
+                        Outcome(
+                            task_id=task.id,
+                            status="escalated",
+                            decision={"reason": reason},
+                            run_dir=artifacts.run_dir,
+                            worktree=worktree.path,
+                            branch=worktree.branch,
+                        ),
+                        reason,
+                    )
 
             findings: list[dict] = []
             reviews: list[dict] = []

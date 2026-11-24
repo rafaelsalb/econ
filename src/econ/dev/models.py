@@ -37,7 +37,9 @@ _SHELL_META = set(";|&><`$(){}\n\r")
 
 class Source(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["local", "github", "demo", "canary"] = "local"
+    # "bug" marks a bug report contract: risk 0/1 bug tasks must prove the bug
+    # with a failing test (reproducer) before any fix is implemented.
+    kind: Literal["local", "github", "demo", "canary", "bug"] = "local"
     number: int | None = None
     url: str | None = None
     author: str | None = None

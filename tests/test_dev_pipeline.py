@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from econ.dev.pipeline import DevPipeline
 from econ.dev.runner import FakeRunner
@@ -36,7 +37,7 @@ def test_shadow_mode_records_without_merging(tmp_path):
 
 def test_review_loop_requests_one_revision_then_approves(tmp_path):
     repo = make_repo(tmp_path / "repo")
-    add_task(repo, demo_task(fail_first_rounds=1))
+    add_task(repo, demo_task(risk=2, fail_first_rounds=1))
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "done", outcome.decision
     assert outcome.rounds == 2
@@ -123,7 +124,7 @@ def test_risk_two_requires_two_reviews_and_merges(tmp_path):
 
 def test_always_rejecting_reviewer_escalates_after_budget(tmp_path):
     repo = make_repo(tmp_path / "repo")
-    add_task(repo, demo_task(fail_first_rounds=99))
+    add_task(repo, demo_task(risk=2, fail_first_rounds=99))
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "escalated"
     assert "review requested changes" in outcome.decision["reason"]
@@ -146,3 +147,80 @@ def test_patch_artifact_and_cost_are_recorded(tmp_path):
     assert "src/econ/feature.py" in patch
     assert (run_dir / "cost.json").exists()
     assert outcome.decision["changed_files"]
+
+
+# -- tier routing: the gates, not the agents, are the authority -------------
+def _started_roles(repo: Path, task_id: str) -> list[str]:
+    events = (repo / "runs" / "dev" / "tasks" / task_id / "events.jsonl").read_text()
+    roles = []
+    for line in events.splitlines():
+        if not line.strip():
+            continue
+        payload = json.loads(line)
+        if payload.get("event") == "agent_started":
+            roles.append(payload["role"])
+    return roles
+
+
+def test_risk_one_runs_no_lead_and_no_reviewer(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task())
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "done", outcome.decision
+    # Risk 0/1 is intake -> implementer -> verifier -> gates. The lead plan and
+    # the LLM reviewers are a risk >= 2 control; buying them for a one-file
+    # patch is pure ceremony.
+    assert _started_roles(repo, "DEV-0001") == ["implementer", "verifier"]
+
+
+def test_risk_two_keeps_the_full_ladder(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task(risk=2))
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "done", outcome.decision
+    roles = _started_roles(repo, "DEV-0001")
+    assert roles[0] == "lead"
+    assert roles[1] == "architect"
+    for expected in (
+        "implementer",
+        "reviewer",
+        "reviewer_alt",
+        "verifier",
+        "science_guard",
+    ):
+        assert expected in roles
+
+
+def test_bug_sourced_risk_one_runs_the_reproducer_first(tmp_path):
+    from econ.dev.models import Source
+
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task().model_copy(update={"source": Source(kind="bug")})
+    add_task(repo, task)
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "done", outcome.decision
+    roles = _started_roles(repo, "DEV-0001")
+    assert roles[0] == "reproducer"
+    assert roles.index("reproducer") < roles.index("implementer")
+    repro = json.loads(
+        (repo / "runs" / "dev" / "tasks" / "DEV-0001" / "out" / "reproducer.json").read_text()
+    )
+    assert repro["reproduced"] is True
+    assert repro["test_file"].startswith("tests/")
+    assert repro["failing_command"]
+
+
+def test_unreproduced_bug_escalates_before_any_fix(tmp_path):
+    from econ.dev.models import Source
+
+    repo = make_repo(tmp_path / "repo")
+    files = [{"path": "src/econ/thing.py", "content": "VALUE = 2\n"}]
+    task = demo_task(files=files, acceptance=["python -m pytest -q"]).model_copy(
+        update={"source": Source(kind="bug")}
+    )
+    add_task(repo, task)
+    outcome = run_task(repo, "DEV-0001")
+    # No failing test, no fix: the pipeline must not patch an unproven bug.
+    assert outcome.status == "escalated"
+    assert "reproduc" in outcome.decision["reason"]
+    assert not (repo / "src" / "econ" / "thing.py").exists()

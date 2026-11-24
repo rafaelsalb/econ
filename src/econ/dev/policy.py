@@ -11,7 +11,10 @@ class AutoMergeConfig(BaseModel):
     max_risk: int = Field(default=2, ge=0, le=2)
     risk_2_max_changed_files: int = 12
     risk_2_max_diff_lines: int = 400
-    reviewers: dict[int, int] = Field(default_factory=lambda: {0: 1, 1: 1, 2: 2})
+    # Reviewers are a risk-2 control. Risk 0/1 merges on gates plus the blind
+    # clean-tree verifier; buying an LLM review for a one-file patch is
+    # ceremony. Unknown tiers fail safe to one review.
+    reviewers: dict[int, int] = Field(default_factory=lambda: {0: 0, 1: 0, 2: 2})
     second_reviewer_model: str = "opencode-go/kimi-k3"
     risk_3: str = "human"
 

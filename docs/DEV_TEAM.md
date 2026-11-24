@@ -24,16 +24,21 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 | Agent | Mode | Job |
 |---|---|---|
 | `dev-pm` | primary | Interview the human, draft a proposed contract, validate it, hand off; never edits code or merges |
-| `dev-lead` | primary | Plan, set risk, dispatch; never edits code |
+| `dev-lead` | primary | Plan, set risk, dispatch for risk ≥ 2; never edits code |
 | `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
 | `dev-implementer` | subagent | Smallest patch plus a red-green test |
-| `dev-reviewer` | subagent | Blind diff review on `qwen3.8-max` |
+| `dev-reviewer` | subagent | Blind diff review on `qwen3.8-max`, risk ≥ 2 only |
 | `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `kimi-k3` |
 | `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance |
-| `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism |
+| `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism; risk ≥ 2 only |
 | `dev-scribe` | subagent | Docs only, after approval |
 | `dev-triage` | subagent | Turns a GitHub issue into a task contract |
-| `dev-reproducer` | subagent | Turns a bug into a failing test |
+| `dev-reproducer` | subagent | Turns a bug contract into a failing test before any fix |
+
+Role routing is by risk tier: risk 0/1 runs intake → reproducer (bug-sourced
+contracts only) → implementer → verifier → gates; the lead, architect,
+reviewers, and science guard are risk ≥ 2 controls. The gates and the blind
+clean-tree verification run for every tier.
 
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents
@@ -140,7 +145,8 @@ the base commit proves nothing.
 
 `config/dev_policy.yaml`:
 
-- risk 0/1: auto-merge after gates and one approval;
+- risk 0/1: auto-merge after gates and blind verification; no lead, no
+  reviewers — the deterministic gates are the authority;
 - risk 2: two independent approvals on different models, ≤12 files and ≤400
   lines, no protected path;
 - risk 3: always escalated for human sign-off; never auto-merged.

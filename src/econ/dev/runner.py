@@ -343,14 +343,33 @@ class FakeRunner:
                 "reason": "fake triage",
             }
         elif role == "reproducer":
-            payload = {
-                "role": "reproducer",
-                "reproduced": False,
-                "test_file": "",
-                "failing_command": "",
-                "observed_failure": "",
-                "notes": "fake reproducer",
-            }
+            tests = [
+                item
+                for item in demo.get("files") or []
+                if item["path"].startswith("tests/")
+            ]
+            for item in tests:
+                target = cwd / item["path"]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(item["content"])
+            if tests:
+                payload = {
+                    "role": "reproducer",
+                    "reproduced": True,
+                    "test_file": tests[0]["path"],
+                    "failing_command": (task.get("acceptance") or [""])[0],
+                    "observed_failure": "the base commit fails the new test",
+                    "notes": "fake reproducer",
+                }
+            else:
+                payload = {
+                    "role": "reproducer",
+                    "reproduced": False,
+                    "test_file": "",
+                    "failing_command": "",
+                    "observed_failure": "no failing test in the demo contract",
+                    "notes": "fake reproducer",
+                }
         else:
             raise KeyError(f"unknown dev agent role: {role}")
 
