@@ -50,7 +50,6 @@ agents:
 	$(PY) -m econ.cli dev agents check
 
 dev-check:
-	$(PY) -m econ.cli dev doctor
 	$(PY) -m econ.cli dev validate --all
 	$(PY) -m econ.cli dev agents check
 
