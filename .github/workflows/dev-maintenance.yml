@@ -32,7 +32,7 @@ jobs:
         run: |
           git config user.name "econ-dev-bot"
           git config user.email "econ-dev-bot@users.noreply.github.com"
-          git add reports/dev_dashboard.md reports/dev_dashboard.html
+          git add reports/dev_dashboard.md reports/dev_dashboard.html reports/dev_maintenance.md
           if ! git diff --cached --quiet; then
             git commit -m "chore(dev): maintenance dashboard [skip ci]"
             git push
