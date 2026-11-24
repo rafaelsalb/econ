@@ -47,6 +47,16 @@ auto_merge:
     1: 0
     2: 2
   second_reviewer_model: opencode-go/gpt-6-luna
+  # Merge-critical paths: a diff touching one forces human sign-off at merge
+  # time regardless of tier or size. Blast radius beats diff size. Defense in
+  # depth under the protected set; extensible to deliberately-unprotected
+  # paths (e.g. Makefile) if the owner ever wants merge-time review there.
+  critical_paths:
+    - "src/econ/dev/**"
+    - ".github/workflows/**"
+    - "tests/dev_support.py"
+    - "tasks/templates/task.yaml"
+    - "dev/evals/canary/**"
   # Risk 3 is never auto-merged.
   risk_3: human
 
@@ -69,6 +79,9 @@ gates:
   timeout_s: 900
   require_tests_for_risk: 1
   red_green: true
+  # Coverage delta gate (pytest-cov, dev dependency). Risk 2 only.
+  coverage_delta: true
+  coverage_test_command: "python -m pytest -q --cov=src"
   max_changed_files: 25
   max_diff_lines: 800
   dependency_files:

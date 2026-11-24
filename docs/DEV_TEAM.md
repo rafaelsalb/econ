@@ -124,6 +124,7 @@ READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY 
 | `patch` / `patch_apply` | non-empty and applies to a clean base |
 | `scope` | every changed file is explicitly allowed |
 | `protected` | no protected path is touched: science contract or merge authority |
+| `critical_paths` | merge-critical blast radius forces human sign-off regardless of diff size |
 | `dependencies` | dependency changes need human sign-off |
 | `secrets` | no key-like strings in the diff |
 | `size` | task and policy limits |
@@ -131,6 +132,7 @@ READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY 
 | `acceptance` | the task's commands pass |
 | `full_tests` | no regression in the suite |
 | `red_green` | new tests fail on the base commit |
+| `coverage_delta` | changed sources do not lose test coverage (pytest-cov, risk 2) |
 | `econ_check` | vintage/purge/registry gates still pass |
 | `agents_check` | generated research roster is current |
 | `dev_agents_check` | generated development roster is current |
@@ -147,8 +149,9 @@ the base commit proves nothing.
 
 - risk 0/1: auto-merge after gates and blind verification; no lead, no
   reviewers — the deterministic gates are the authority;
-- risk 2: two independent approvals on different models, ≤12 files and ≤400
-  lines, no protected path;
+- risk 2: two independent approvals on different models, no critical path,
+  no coverage drop on changed sources; the ≤12-file / ≤400-line caps are a
+  secondary guard, not the blast-radius rule;
 - risk 3: always escalated for human sign-off; never auto-merged.
 
 The controller enforces this from structured gate results, not from prose.

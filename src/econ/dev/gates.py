@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shlex
 import shutil
@@ -95,6 +96,49 @@ class CommandResult:
             "stdout_tail": tail(self.stdout),
             "stderr_tail": tail(self.stderr),
         }
+
+
+def coverage_deltas(
+    base_report: dict, patch_report: dict, sources: list[str]
+) -> list[dict]:
+    """Per-file coverage delta between a base and a patch coverage JSON.
+
+    New files count as gain (base coverage 0). Sources missing from the patch
+    report were deleted or excluded; a deletion is not a coverage drop, so the
+    file is skipped rather than counted as -100.
+    """
+
+    def percent(report: dict, path: str) -> float | None:
+        files = report.get("files") or {}
+        entry = files.get(path)
+        if entry is None:
+            # Coverage.py may key by absolute or rootdir-relative path.
+            suffix = "/" + path
+            for key, candidate in files.items():
+                if key == path or key.endswith(suffix):
+                    entry = candidate
+                    break
+        if not isinstance(entry, dict):
+            return None
+        return float((entry.get("summary") or {}).get("percent_covered", 0.0))
+
+    rows: list[dict] = []
+    for path in sources:
+        patch_pct = percent(patch_report, path)
+        if patch_pct is None:
+            continue
+        base_pct = percent(base_report, path)
+        if base_pct is None:
+            base_pct = 0.0
+        rows.append(
+            {
+                "file": path,
+                "base_pct": round(base_pct, 2),
+                "patch_pct": round(patch_pct, 2),
+                "delta": round(patch_pct - base_pct, 2),
+            }
+        )
+    return rows
 
 
 class GateRunner:
@@ -217,6 +261,23 @@ class GateRunner:
             "protected paths touched: " + ", ".join(hits)
             if hits
             else "no protected path touched",
+            blocking=bool(hits),
+            human_required=bool(hits),
+            evidence={"paths": hits},
+        )
+
+    def gate_critical(self) -> GateResult:
+        # Blast radius beats diff size: five lines inside the merge authority
+        # are riskier than five hundred in a pad file. Defense in depth under
+        # the protected set — it also covers critical-but-unprotected paths.
+        changed = self.changed_files()
+        hits = protected_hits(changed, self.policy.auto_merge.critical_paths)
+        return GateResult(
+            "critical_paths",
+            not hits,
+            "merge-critical paths touched: " + ", ".join(hits)
+            if hits
+            else "no merge-critical path touched",
             blocking=bool(hits),
             human_required=bool(hits),
             evidence={"paths": hits},
@@ -466,6 +527,77 @@ class GateRunner:
             evidence={"paths": forbidden},
         )
 
+    def gate_coverage_delta(self) -> GateResult:
+        # A small green diff can still shed tested behavior. Risk 2 only:
+        # this is part of the auto-merge decision the size caps used to carry
+        # alone. A negative delta forces human sign-off; the contract's notes
+        # can document an expected drop for the human to judge.
+        if not self.policy.gates.coverage_delta:
+            return GateResult("coverage_delta", True, "not configured", blocking=False)
+        if self.task.risk != 2:
+            return GateResult(
+                "coverage_delta", True, "skipped for risk != 2", blocking=False
+            )
+        changed = self.changed_files()
+        sources = [p for p in changed if p.startswith("src/") and p.endswith(".py")]
+        if not sources:
+            return GateResult(
+                "coverage_delta", True, "no source files changed", blocking=False
+            )
+        scratch = self.repo / "runs" / "dev"
+        scratch.mkdir(parents=True, exist_ok=True)
+        tmp = Path(tempfile.mkdtemp(prefix="econ-cov-", dir=scratch))
+        base_wt = tmp / "tree"
+        try:
+            git(["worktree", "add", "--detach", str(base_wt), self.base], self.repo)
+            argv = shlex.split(self.policy.gates.coverage_test_command)
+            reports: dict[str, dict] = {}
+            for label, cwd, report_path in (
+                ("patch", self.worktree.path, tmp / "patch.json"),
+                ("base", base_wt, tmp / "base.json"),
+            ):
+                proc = subprocess.run(
+                    [*argv, f"--cov-report=json:{report_path}"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.policy.gates.timeout_s,
+                    env=command_env(self.repo, cwd),
+                    check=False,
+                )
+                if not report_path.exists():
+                    return GateResult(
+                        "coverage_delta",
+                        True,
+                        f"coverage report unavailable (exit {proc.returncode}); "
+                        "is pytest-cov installed?",
+                        blocking=False,
+                        evidence={"sources": sources, "stderr_tail": tail(proc.stderr)},
+                    )
+                reports[label] = json.loads(report_path.read_text())
+            rows = coverage_deltas(reports.get("base", {}), reports["patch"], sources)
+            drops = [row for row in rows if row["delta"] < 0]
+            return GateResult(
+                "coverage_delta",
+                not drops,
+                "coverage did not drop on changed sources"
+                if not drops
+                else "coverage dropped on: "
+                + ", ".join(f"{row['file']} ({row['delta']:+.2f})" for row in drops),
+                blocking=False,
+                human_required=bool(drops),
+                evidence={"sources": sources, "rows": rows},
+            )
+        except subprocess.TimeoutExpired:
+            return GateResult("coverage_delta", False, "coverage run timed out")
+        finally:
+            git(
+                ["worktree", "remove", "--force", str(base_wt)],
+                self.repo,
+                check=False,
+            )
+            shutil.rmtree(tmp, ignore_errors=True)
+
     # -- stages ------------------------------------------------------------
     def run_pre(self) -> GateReport:
         report = GateReport(stage="pre")
@@ -474,6 +606,7 @@ class GateRunner:
             self.gate_no_forbidden_paths,
             self.gate_scope,
             self.gate_protected,
+            self.gate_critical,
             self.gate_dependencies,
             self.gate_secrets,
             self.gate_size,
@@ -494,6 +627,7 @@ class GateRunner:
             self.gate_dev_agents_check,
             self.gate_dev_validate,
             self.gate_red_green,
+            self.gate_coverage_delta,
             self.gate_lockbox,
             self.gate_registry_append_only,
         ):

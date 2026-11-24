@@ -21,7 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+# pytest-cov is a dev dependency approved by the owner (2026-11-24) for the
+# merge-time coverage-delta gate; recorded per the dependency sign-off rule.
+dev = ["pytest>=8.0", "pytest-cov>=6.0"]
 
 [project.scripts]
 econ = "econ.cli:main"

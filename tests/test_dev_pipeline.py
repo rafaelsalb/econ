@@ -224,3 +224,129 @@ def test_unreproduced_bug_escalates_before_any_fix(tmp_path):
     assert outcome.status == "escalated"
     assert "reproduc" in outcome.decision["reason"]
     assert not (repo / "src" / "econ" / "thing.py").exists()
+
+
+def test_risk_two_critical_path_touch_escalates(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    # A five-line Makefile edit inside the merge-critical table. The task tier
+    # allows auto-merge (Makefile is deliberately unprotected); the blast
+    # radius does not: the referee's build entry point needs a human.
+    files = [
+        {"path": "Makefile", "content": "all:\n\techo ok\n"},
+        {"path": "src/econ/mkflag.py", "content": "FLAG = 'from-makefile'\n"},
+        {
+            "path": "tests/test_mkflag.py",
+            "content": "from econ.mkflag import FLAG\n\n\ndef test_flag():\n    assert FLAG == 'from-makefile'\n",
+        },
+    ]
+    policy = default_policy()
+    policy.auto_merge.critical_paths = [
+        *policy.auto_merge.critical_paths,
+        "Makefile",
+    ]
+    add_task(
+        repo,
+        demo_task(
+            risk=2,
+            files=files,
+            acceptance=["python -m pytest tests/test_mkflag.py -q"],
+            allow=[item["path"] for item in files],
+        ),
+    )
+    outcome = run_task(repo, "DEV-0001", policy=policy)
+    assert outcome.status == "escalated", outcome.decision
+    assert "critical" in outcome.decision["reason"]
+    assert not (repo / "Makefile").exists()
+    assert not (repo / "src" / "econ" / "mkflag.py").exists()
+
+
+def test_risk_two_coverage_drop_escalates(tmp_path):
+    from dev_support import git
+
+    repo = make_repo(tmp_path / "repo")
+    # Base: one fully covered statement. Patch: six statements, one never
+    # executed by the tests. The diff is small, in scope, and green — the
+    # coverage delta is what stops the auto-merge.
+    (repo / "src" / "econ" / "covmod.py").write_text("def f(x):\n    return 1\n")
+    (repo / "tests" / "test_covmod.py").write_text(
+        "from econ.covmod import f\n\n\ndef test_f():\n    assert f(1) == 1\n"
+    )
+    git(["add", "-A"], repo)
+    git(["commit", "-q", "-m", "covmod baseline"], repo)
+    files = [
+        {
+            "path": "src/econ/covmod.py",
+            "content": (
+                "def f(x):\n"
+                "    if x > 0:\n"
+                "        return 1\n"
+                "    if x < -100:\n"
+                "        return -1\n"
+                "    return 0\n"
+            ),
+        },
+        {
+            "path": "tests/test_covmod.py",
+            "content": (
+                "from econ.covmod import f\n\n\n"
+                "def test_f():\n"
+                "    assert f(1) == 1\n"
+                "    assert f(-1) == 0\n"
+            ),
+        },
+    ]
+    add_task(
+        repo,
+        demo_task(
+            risk=2,
+            files=files,
+            acceptance=["python -m pytest tests/test_covmod.py -q"],
+            allow=[item["path"] for item in files],
+        ),
+    )
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "escalated", outcome.decision
+    assert "coverage_delta" in outcome.decision["reason"]
+    gates = json.loads(
+        (repo / "runs" / "dev" / "tasks" / "DEV-0001" / "gates-post.json").read_text()
+    )
+    cov = next(g for g in gates["gates"] if g["name"] == "coverage_delta")
+    assert "coverage dropped on: src/econ/covmod.py" in cov["detail"]
+    assert cov["evidence"]["rows"][0]["delta"] < 0
+    assert not (repo / "src" / "econ" / "covmod.py").read_text().count("return -1")
+
+
+def test_risk_two_large_non_critical_change_still_auto_merges(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    # The caps are a secondary guard now: a 200-line non-critical risk-2
+    # change that passes every gate still auto-merges.
+    files = [
+        {
+            "path": f"src/econ/pad{i}.py",
+            "content": "LINES = [\n" + "".join(f"    {n},\n" for n in range(95)) + "]\n",
+        }
+        for i in (1, 2)
+    ]
+    files.append(
+        {
+            "path": "tests/test_pad.py",
+            "content": (
+                "from econ.pad1 import LINES as L1\n"
+                "from econ.pad2 import LINES as L2\n\n\n"
+                "def test_pad():\n"
+                "    assert len(L1) == len(L2) == 95\n"
+            ),
+        }
+    )
+    add_task(
+        repo,
+        demo_task(
+            risk=2,
+            files=files,
+            acceptance=["python -m pytest tests/test_pad.py -q"],
+            allow=[item["path"] for item in files],
+        ),
+    )
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "done", outcome.decision
+    assert (repo / "src" / "econ" / "pad1.py").exists()

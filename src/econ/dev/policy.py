@@ -19,6 +19,20 @@ class AutoMergeConfig(BaseModel):
     # in sync with config/dev_agents.yaml's reviewer_alt entry.
     second_reviewer_model: str = "opencode-go/gpt-6-luna"
     risk_3: str = "human"
+    # Merge-critical paths: a diff that touches one forces human sign-off at
+    # merge time even when the task tier would allow auto-merge. Blast radius
+    # beats diff size — five lines in the referee are riskier than five
+    # hundred in a pad file. Defense in depth under the protected set, and
+    # extensible to paths the owner deliberately left unprotected.
+    critical_paths: list[str] = Field(
+        default_factory=lambda: [
+            "src/econ/dev/**",
+            ".github/workflows/**",
+            "tests/dev_support.py",
+            "tasks/templates/task.yaml",
+            "dev/evals/canary/**",
+        ]
+    )
 
 
 class BudgetConfig(BaseModel):
@@ -43,6 +57,10 @@ class GatesConfig(BaseModel):
     timeout_s: int = 900
     require_tests_for_risk: int = 1
     red_green: bool = True
+    # Coverage delta gate (pytest-cov). Risk 2 only: it guards the auto-merge
+    # decision that the size caps used to carry alone.
+    coverage_delta: bool = True
+    coverage_test_command: str = "python -m pytest -q --cov=src"
     max_changed_files: int = 25
     max_diff_lines: int = 800
     dependency_files: list[str] = Field(

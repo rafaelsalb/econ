@@ -96,3 +96,59 @@ def test_ready_queue_rejects_low_risk_referee_task(tmp_path):
     store.save(task, status="proposed")
     loaded = store.load("DEV-0099")
     assert loaded.risk == 3
+
+
+# -- blast radius: merge-critical paths and coverage deltas ---------------
+def test_critical_paths_seed_matches_config():
+    from econ.dev.policy import load_policy
+
+    policy = load_policy(REPO_ROOT)
+    assert policy.auto_merge.critical_paths == [
+        "src/econ/dev/**",
+        ".github/workflows/**",
+        "tests/dev_support.py",
+        "tasks/templates/task.yaml",
+        "dev/evals/canary/**",
+    ]
+
+
+def test_coverage_deltas_flag_negative_deltas():
+    from econ.dev.gates import coverage_deltas
+
+    base = {"files": {"src/econ/a.py": {"summary": {"percent_covered": 90.0}}}}
+    patch = {
+        "files": {
+            "src/econ/a.py": {"summary": {"percent_covered": 70.0}},
+            "src/econ/b.py": {"summary": {"percent_covered": 85.0}},
+        }
+    }
+    rows = coverage_deltas(base, patch, ["src/econ/a.py", "src/econ/b.py"])
+    by_file = {row["file"]: row for row in rows}
+    assert by_file["src/econ/a.py"]["delta"] == -20.0
+    assert by_file["src/econ/b.py"]["delta"] == 85.0  # new file: gain, not drop
+
+
+def test_coverage_deltas_new_file_counts_as_gain():
+    from econ.dev.gates import coverage_deltas
+
+    patch = {"files": {"src/econ/new.py": {"summary": {"percent_covered": 30.0}}}}
+    rows = coverage_deltas({}, patch, ["src/econ/new.py"])
+    assert rows[0]["base_pct"] == 0.0
+    assert rows[0]["delta"] == 30.0
+
+
+def test_coverage_deltas_skips_deleted_sources():
+    from econ.dev.gates import coverage_deltas
+
+    base = {"files": {"src/econ/gone.py": {"summary": {"percent_covered": 50.0}}}}
+    rows = coverage_deltas(base, {"files": {}}, ["src/econ/gone.py"])
+    assert rows == []
+
+
+def test_coverage_deltas_matches_report_paths_by_suffix():
+    from econ.dev.gates import coverage_deltas
+
+    base = {"files": {"/abs/root/src/econ/a.py": {"summary": {"percent_covered": 90.0}}}}
+    patch = {"files": {"src/econ/a.py": {"summary": {"percent_covered": 40.0}}}}
+    rows = coverage_deltas(base, patch, ["src/econ/a.py"])
+    assert rows[0]["delta"] == -50.0
