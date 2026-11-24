@@ -1,0 +1,128 @@
+id: DEV-0002
+title: Add the read-only web skeleton and as-of /data view
+status: done
+risk: 2
+priority: 60
+created: '2026-11-24'
+goal: 'Add `econ web [--host 127.0.0.1] [--port 8000]`, a local read-only FastAPI
+
+  dashboard served through uvicorn, plus the `/` and `/data` views.
+
+
+  `econ.web.create_app()` returns the FastAPI app and `econ.web.app` is the
+
+  module-level instance. Keep the app in `src/econ/web.py` and the CLI
+
+  wiring in `src/econ/cli.py`; do not add new Python modules. The `web` CLI
+
+  subcommand defaults to host 127.0.0.1 and port 8000, passes
+
+  `--host`/`--port` through, and imports uvicorn inside the command handler.
+
+  Jinja2 autoescaping stays enabled.
+
+
+  `/` renders a short summary page with a link to `/data`.
+
+
+  `/data` builds an `econ.vintage.Panel` for the requested `origin` (default:
+
+  the latest `release_date` visible in the curated observations), lists every
+
+  catalog series with its latest visible period and value, and renders the
+
+  monthly or quarterly history of the selected series (default: the first
+
+  monthly catalog series, falling back to the first series). A series with no
+
+  visible observation shows an em dash instead of failing the request. Only
+
+  rows with `release_date <= origin` may appear, and no realized outcome is
+
+  joined.
+
+
+  A malformed `origin` or an unknown `series` returns HTTP 400 instead of a
+
+  traceback. Serving any request must not create or modify anything under
+
+  `data/`, `registry/`, `eval/`, `specs/`, or `reports/`; it must not run
+
+  `ingest`, `backtest`, `score`, `loop`, `ensemble`, `report`, or `lockbox`;
+
+  it must never open the lockbox.
+
+
+  Add `tests/test_web.py` covering the app factory, `/`, the `/data` as-of
+
+  filter (a row released after the origin must not appear), the default
+
+  origin (the latest visible `release_date`), a series with no visible
+
+  observation (em dash, no error), both 400 responses, and the CLI parsing
+
+  (`econ web` defaults to 127.0.0.1:8000 and honors `--host`/`--port`);
+
+  exercise `cmd_web` itself with a monkeypatched `uvicorn.run` so the command
+
+  handler is covered. Use `fastapi.testclient.TestClient` (httpx is
+
+  installed); never start a real server in a test.
+
+  '
+acceptance:
+- python -m pytest tests/test_web.py -q
+scope:
+  allow:
+  - src/econ/web.py
+  - src/econ/templates/index.html
+  - src/econ/templates/data.html
+  - src/econ/cli.py
+  - tests/test_web.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/**
+  - config/**
+  - src/econ/dev/**
+  - .github/**
+  - tests/dev_support.py
+  - tasks/templates/**
+  - dev/evals/canary/**
+  - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 6
+  max_diff_lines: 360
+  wall_seconds: 2400
+source:
+  kind: local
+notes: 'First of two sequential tasks split from DEV-0001, which was escalated for
+
+  size (549 lines > 400) and an undeclared FastAPI dependency. fastapi,
+
+  uvicorn, and httpx are already declared in pyproject.toml and installed in
+
+  .venv; do not edit pyproject.toml. Keep `/` linking only `/data`: DEV-0003
+
+  adds the `/forecasts` route and updates both navs. This task is the
+
+  foundation, so stay well inside the line budget: a small app factory, one
+
+  template per view, and focused tests, not a copy of every helper from the
+
+  escalated attempt. The risk-2 coverage gate compares `web.py` and `cli.py`
+
+  coverage to the base: cover the new handler and the `/data` branches.
+
+
+  2026-11-24: failed: AgentProtocolError: reviewer_alt did not produce a JSON artifact
+
+  2026-11-24: escalated: merge failed: cannot merge into main: repository is dirty
+
+  2026-11-24: done: merged after clearing the merge worktree'
+retries: 0

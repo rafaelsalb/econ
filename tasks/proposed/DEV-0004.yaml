@@ -1,0 +1,88 @@
+id: DEV-0004
+title: Add econ dev show to reconstruct a run from its artifacts
+status: proposed
+risk: 3
+priority: 70
+created: '2026-11-24'
+goal: |
+  Add a read-only `econ dev show <TASK>` command that explains one development
+  run from `runs/dev/tasks/<TASK>/` without rerunning anything or reading a
+  worktree.
+
+  Put the renderer in a new `src/econ/dev/view.py` so the later live and
+  dashboard work can reuse it. `show` prints one screen with:
+
+  - status, risk, rounds, reason, shadow and merge flags from `decision.json`,
+    or `running` when the task has no decision yet;
+  - wall time from the first `task_started` to the last event, plus a
+    chronological timeline of task/round/agent events with per-call durations
+    (pair `agent_started` with `agent_call` and use `agent_call.duration_s`);
+  - a gate table from `gates-pre.json`, `gates-post.json`, and
+    `gates-merge.json`: name, PASS/FAIL, detail, duration, and the evidence
+    path (`gates-*.json` or `test-report.json`). Label the stage and show the
+    failing gate's detail verbatim so a `size` or `acceptance` failure is
+    actionable. Today these files hold only the latest round; do not invent
+    missing round history.
+  - review verdicts and findings from `out/review-*.json`,
+    `out/verifier.json`, and `out/science_guard.json`, falling back to
+    `decision.reviews`;
+  - patch size (files and lines) from `decision` when present, otherwise a
+    line count from `patch.diff`;
+  - recorded cost and tokens from `cost.json` and step utilization from
+    `steps.json`;
+  - the run directory and the evidence files that actually exist.
+
+  `--json` returns the same data as a stable dict. Missing files, malformed
+  JSON, and a partial last line in `events.jsonl` are tolerated: report what
+  is available and never raise a traceback for a missing artifact. `show`
+  must not execute task commands, read worktree contents, or write anything.
+
+  This is the post-mortem half of the observability work. `watch` and the
+  in-flight dashboard are follow-up contracts.
+acceptance:
+  - python -m pytest tests/test_dev_view.py -q
+scope:
+  allow:
+    - src/econ/dev/view.py
+    - src/econ/dev/cli.py
+    - tests/test_dev_view.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/final_report.md
+    - reports/lockbox_report.md
+    - config/**
+    - .github/**
+    - tests/dev_support.py
+    - tasks/templates/**
+    - dev/evals/canary/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5
+  max_changed_files: 4
+  max_diff_lines: 450
+  wall_seconds: 2400
+notes: |
+  Risk 3 by construction: `src/econ/dev/**` is protected, so the controller
+  will escalate this task for human sign-off instead of running it. That is
+  intended for the referee, not a workaround.
+
+  Tests must build a synthetic run directory under `tmp_path` (task.yaml,
+  events.jsonl, state.json, decision.json, gates-pre.json, test-report.json,
+  cost.json, steps.json, out/review-1-1.json) and assert both the rendered
+  screen and the `--json` dict. Cover a normal two-round escalation with a
+  failing `size` gate and a review finding, a running task with no
+  decision.json, and a run with a truncated events.jsonl line plus missing
+  gate files. Do not depend on `runs/dev/` in the checkout.
+
+  Token totals will remain zero until DEV-0006 lands; display them as
+  recorded instead of hiding the field, and do not fail when `cost.json` is
+  missing.
+
+  For a manual smoke test after implementation, run
+  `python -m econ.cli dev show DEV-0002` against the live run. Keep the
+  output plain text (no Markdown renderer) and make `--json` stable enough
+  for the later dashboard to consume.
