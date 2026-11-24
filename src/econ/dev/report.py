@@ -27,6 +27,24 @@ def load_index(repo: Path) -> list[dict]:
     return out
 
 
+def canary_status(repo: Path) -> dict:
+    path = repo / "runs" / "dev" / "canaries" / "latest.json"
+    if not path.exists():
+        return {"total": 0, "passed": 0, "failed": 0, "results": []}
+    try:
+        payload = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {"total": 0, "passed": 0, "failed": 0, "results": []}
+    results = payload.get("results") or []
+    return {
+        "generated_at": payload.get("generated_at"),
+        "total": len(results),
+        "passed": sum(1 for row in results if row.get("ok")),
+        "failed": sum(1 for row in results if not row.get("ok")),
+        "results": results,
+    }
+
+
 def metrics(repo: Path) -> dict:
     rows = load_index(repo)
     by_status = Counter(row.get("status", "unknown") for row in rows)
@@ -55,6 +73,7 @@ def metrics(repo: Path) -> dict:
         "avg_rounds": round(sum(rounds) / len(rounds), 2) if rounds else 0.0,
         "cost_usd": round(cost, 6),
         "recent": rows[-15:],
+        "canaries": canary_status(repo),
     }
 
 
@@ -85,6 +104,25 @@ def dashboard_markdown(repo: Path) -> str:
     ]
     for risk, count in sorted(m["by_risk"].items()):
         lines.append(f"| {risk} | {count} |")
+    c = m["canaries"]
+    lines += [
+        "",
+        "## Held-out canaries",
+        "",
+        f"Passed {c['passed']} of {c['total']}."
+        + (f" Generated: `{c.get('generated_at')}`." if c.get("generated_at") else ""),
+        "",
+        "| Task | Result | Status | Rounds |",
+        "|---|---|---|---:|",
+    ]
+    if c["results"]:
+        for row in c["results"]:
+            lines.append(
+                f"| {row.get('task_id','?')} | {'PASS' if row.get('ok') else 'FAIL'} | "
+                f"{row.get('status','?')} | {row.get('rounds','?')} |"
+            )
+    else:
+        lines.append("| — | — | — | — |")
     lines += ["", "## Recent tasks", "", "| Task | Status | Risk | Rounds | Reason |", "|---|---|---:|---:|---|"]
     for row in m["recent"]:
         reason = str(row.get("reason", "")).replace("|", "\\|")[:100]
@@ -136,6 +174,7 @@ th, td {{ text-align: left; border-bottom: 1px solid #8884; padding: .45rem .5re
   <div class="card"><span>Escalated</span><b>{m['escalated']}</b></div>
   <div class="card"><span>First-pass</span><b>{m['first_pass_rate']:.0%}</b></div>
   <div class="card"><span>Autonomy</span><b>{m['autonomy_rate']:.0%}</b></div>
+  <div class="card"><span>Canaries</span><b>{m['canaries']['passed']}/{m['canaries']['total']}</b></div>
   <div class="card"><span>Cost</span><b>${m['cost_usd']:.2f}</b></div>
 </div>
 <h2>Recent tasks</h2>

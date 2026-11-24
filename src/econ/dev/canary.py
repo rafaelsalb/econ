@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -103,6 +105,42 @@ def _canary_policy() -> DevPolicy:
     return policy
 
 
+def write_canary_report(repo: Path, results: list[dict]) -> dict:
+    """Persist canary evidence for the dashboard and humans."""
+    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload = {"generated_at": generated, "results": results}
+    out = repo / "runs" / "dev" / "canaries"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+    with (out / "index.jsonl").open("a") as fh:
+        fh.write(json.dumps(payload) + "\n")
+    reports = repo / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Development canaries",
+        "",
+        f"Generated: `{generated}`",
+        "",
+        "| Task | Result | Status | Rounds | Reason |",
+        "|---|---|---|---:|---|",
+    ]
+    for row in results:
+        reason = str(row.get("reason", "")).replace("|", "\\|")[:140]
+        lines.append(
+            f"| {row.get('task_id','?')} | {'PASS' if row.get('ok') else 'FAIL'} | "
+            f"{row.get('status','?')} | {row.get('rounds','?')} | {reason} |"
+        )
+    lines += [
+        "",
+        "These are held-out pipeline tests. They do not enter the ready queue and",
+        "must not be edited to make a failing pipeline look healthy.",
+        "",
+    ]
+    report = reports / "dev_canaries.md"
+    report.write_text("\n".join(lines))
+    return {"json": str(out / "latest.json"), "report": str(report), "results": results}
+
+
 def run_canaries(
     repo: Path,
     *,
@@ -156,6 +194,7 @@ def run_canaries(
         finally:
             if not keep:
                 shutil.rmtree(workdir, ignore_errors=True)
+    write_canary_report(repo, results)
     return results
 
 

@@ -1,6 +1,6 @@
 # Development dashboard
 
-Generated: `2026-11-24T15:45:34+00:00`
+Generated: `2026-11-24T16:08:51+00:00`
 
 | Metric | Value |
 |---|---:|
@@ -19,6 +19,16 @@ Generated: `2026-11-24T15:45:34+00:00`
 
 | Risk | Tasks |
 |---|---:|
+
+## Held-out canaries
+
+Passed 3 of 3. Generated: `2026-11-24T16:08:25+00:00`.
+
+| Task | Result | Status | Rounds |
+|---|---|---|---:|
+| CANARY-001 | PASS | done | 1 |
+| CANARY-002 | PASS | done | 1 |
+| CANARY-003 | PASS | done | 2 |
 
 ## Recent tasks
 

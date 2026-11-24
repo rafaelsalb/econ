@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 
+from econ.dev.canary import write_canary_report
 from econ.dev.report import dashboard_markdown, metrics, write_dashboard
 from econ.dev.release import bump_version, read_version, release
 
@@ -41,6 +42,24 @@ def test_metrics_and_dashboard(tmp_path):
     assert (repo / "reports" / "dev_dashboard.md").exists()
     assert (repo / "reports" / "dev_dashboard.html").exists()
     assert info["metrics"]["total"] == 4
+
+
+def test_canary_results_are_persisted_in_the_dashboard(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    write_canary_report(
+        repo,
+        [
+            {"task_id": "CANARY-001", "ok": True, "status": "done", "rounds": 1},
+            {"task_id": "CANARY-002", "ok": False, "status": "failed", "rounds": 0, "reason": "boom"},
+        ],
+    )
+    assert (repo / "reports" / "dev_canaries.md").exists()
+    m = metrics(repo)
+    assert m["canaries"]["passed"] == 1
+    assert m["canaries"]["failed"] == 1
+    md = dashboard_markdown(repo)
+    assert "Held-out canaries" in md
+    assert "CANARY-002" in md
 
 
 def test_release_dry_run_and_real(tmp_path):

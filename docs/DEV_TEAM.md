@@ -177,6 +177,8 @@ runs/dev/tasks/<task-id>/
   decision.json
   error.json            # on failure
 runs/dev/index.jsonl    # append-only outcome ledger for metrics
+runs/dev/canaries/      # held-out canary results (latest.json, index.jsonl)
+reports/dev_canaries.md # human-readable canary evidence
 reports/dev_dashboard.{md,html}
 ```
 
