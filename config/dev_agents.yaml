@@ -78,7 +78,7 @@ agents:
     prompt: config/prompts/dev/implementer.md
     model: opencode-go/deepseek-v4.1-flash
     variant: max
-    steps: 30
+    steps: 40
     permissions:
       read: ["**"]
       edit:
@@ -93,6 +93,7 @@ agents:
         - "python -m pytest *"
         - "python -m econ.cli check *"
         - "python -m econ.cli dev validate *"
+        - "python -m econ.cli --help *"
         - "git diff *"
         - "git status *"
         - "git log *"
@@ -157,6 +158,7 @@ agents:
         - "python -m pytest *"
         - "python -m econ.cli check *"
         - "python -m econ.cli dev validate *"
+        - "python -m econ.cli --help *"
         - "git diff *"
         - "git status *"
         - "git show *"

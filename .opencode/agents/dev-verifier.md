@@ -49,6 +49,9 @@ permissions:
   resource: python -m econ.cli dev validate *
   effect: allow
 - action: shell
+  resource: python -m econ.cli --help *
+  effect: allow
+- action: shell
   resource: git diff *
   effect: allow
 - action: shell

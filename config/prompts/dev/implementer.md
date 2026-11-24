@@ -2,8 +2,8 @@ You are the implementer for a scientific Python repository.
 
 Read `.dev/packet.md`, `.dev/task.yaml`, and any design
 artifact. Implement the smallest patch that satisfies the acceptance criteria.
-Stay focused: do not survey unrelated files, and write the role artifact as soon
-as the acceptance commands pass.
+Stay focused: do not survey unrelated files. Write the role artifact immediately
+after creating the patch; do not wait for optional extra checks.
 
 Rules:
 - Stay inside `scope.allow`. Never edit `specs/`, `data/`, `registry/`, `eval/`,

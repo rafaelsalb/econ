@@ -80,6 +80,20 @@ def _review_findings(payload: dict) -> list[dict]:
     return [f for f in findings if isinstance(f, dict)]
 
 
+def _require_fields(role: str, payload: dict, fields: set[str]) -> None:
+    if not isinstance(payload, dict):
+        raise AgentProtocolError(f"{role} artifact is not a JSON object")
+    missing = sorted(fields - set(payload))
+    if missing:
+        raise AgentProtocolError(
+            f"{role} artifact is missing required fields: {', '.join(missing)}"
+        )
+    if payload.get("role") != role:
+        raise AgentProtocolError(
+            f"{role} artifact has role={payload.get('role')!r}"
+        )
+
+
 class DevPipeline:
     def __init__(
         self,
@@ -382,9 +396,15 @@ class DevPipeline:
         (worktree.path / ".dev" / "findings.json").write_text(
             json.dumps(findings, indent=2)
         )
-        return self._agent(
+        payload = self._agent(
             "implementer", worktree, task, artifacts, packet, round_no=round_no
         )
+        _require_fields(
+            "implementer",
+            payload,
+            {"role", "summary", "files", "tests_added", "commands", "known_limitations"},
+        )
+        return payload
 
     def _run_reviewer(
         self,
@@ -407,6 +427,7 @@ class DevPipeline:
         self._write_packet(worktree, task, packet, round_no=round_no)
         self._prepare_review(worktree, task, artifacts)
         payload = self._agent(role, worktree, task, artifacts, packet, round_no=round_no)
+        _require_fields("reviewer", payload, {"role", "verdict", "findings"})
         verdict = payload.get("verdict")
         if verdict not in {"approve", "changes_requested"}:
             raise AgentProtocolError(f"{role} returned invalid verdict: {verdict!r}")
@@ -436,6 +457,7 @@ class DevPipeline:
             )
         finally:
             verify.remove(delete_branch=True)
+        _require_fields("verifier", payload, {"role", "verdict", "checks"})
         verdict = payload.get("verdict")
         if verdict not in {"pass", "fail"}:
             raise AgentProtocolError(f"verifier returned invalid verdict: {verdict!r}")
@@ -458,6 +480,9 @@ class DevPipeline:
         self._write_packet(worktree, task, packet, round_no=round_no)
         payload = self._agent(
             "science_guard", worktree, task, artifacts, packet, round_no=round_no
+        )
+        _require_fields(
+            "science_guard", payload, {"role", "verdict", "checks", "findings"}
         )
         if payload.get("verdict") not in {"clear", "block"}:
             raise AgentProtocolError("science guard returned invalid verdict")
@@ -493,6 +518,7 @@ class DevPipeline:
                 artifacts,
                 "Produce a short plan for this task. Do not edit code.",
             )
+            _require_fields("lead", lead, {"role", "plan", "escalate"})
             if lead.get("escalate"):
                 outcome = Outcome(
                     task_id=task.id,
@@ -516,6 +542,9 @@ class DevPipeline:
                     task,
                     artifacts,
                     "Produce the design and test plan. Do not edit code.",
+                )
+                _require_fields(
+                    "architect", architect, {"role", "design", "files", "test_plan"}
                 )
                 artifacts.write_json("out/architect.json", architect)
 

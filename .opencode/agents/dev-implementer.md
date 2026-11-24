@@ -4,7 +4,7 @@ description: Writes the smallest code and test patch that satisfies the acceptan
 mode: subagent
 model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
-steps: 30
+steps: 40
 permissions:
 - action: '*'
   resource: '*'
@@ -65,6 +65,9 @@ permissions:
   effect: allow
 - action: shell
   resource: python -m econ.cli dev validate *
+  effect: allow
+- action: shell
+  resource: python -m econ.cli --help *
   effect: allow
 - action: shell
   resource: git diff *
@@ -225,8 +228,8 @@ You are the implementer for a scientific Python repository.
 
 Read `.dev/packet.md`, `.dev/task.yaml`, and any design
 artifact. Implement the smallest patch that satisfies the acceptance criteria.
-Stay focused: do not survey unrelated files, and write the role artifact as soon
-as the acceptance commands pass.
+Stay focused: do not survey unrelated files. Write the role artifact immediately
+after creating the patch; do not wait for optional extra checks.
 
 Rules:
 - Stay inside `scope.allow`. Never edit `specs/`, `data/`, `registry/`, `eval/`,
