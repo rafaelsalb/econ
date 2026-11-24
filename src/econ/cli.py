@@ -109,6 +109,14 @@ def cmd_panel(args) -> None:
         print(f"  {sid:18s} latest={panel.latest(sid)}")
 
 
+def cmd_web(args) -> None:
+    import uvicorn
+
+    from .web import app
+
+    uvicorn.run(app, host=args.host, port=args.port)
+
+
 def cmd_loop(args) -> None:
     _load_api_key(getattr(args, "api_key_file", None))
     if args.model == "new_keynesian":
@@ -295,6 +303,11 @@ def main() -> None:
     p = sub.add_parser("panel", help="inspect an as-of data slice")
     p.add_argument("--origin", required=True)
     p.set_defaults(func=cmd_panel)
+
+    p = sub.add_parser("web", help="serve the read-only local dashboard")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_web)
 
     p = sub.add_parser("loop", help="run the school-model critic loop")
     p.add_argument("--model", default="new_keynesian")
