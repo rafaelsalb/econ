@@ -33,6 +33,7 @@ class GatesConfig(BaseModel):
     full_test_command: str = "python -m pytest -q"
     check_command: str | None = "python -m econ.cli check"
     agents_check_command: str | None = "python -m econ.cli agents check"
+    dev_agents_check_command: str | None = "python -m econ.cli dev agents check"
     dev_validate_command: str | None = "python -m econ.cli dev validate --all"
     timeout_s: int = 900
     require_tests_for_risk: int = 1

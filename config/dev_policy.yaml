@@ -54,6 +54,7 @@ gates:
   full_test_command: "python -m pytest -q"
   check_command: "python -m econ.cli check"
   agents_check_command: "python -m econ.cli agents check"
+  dev_agents_check_command: "python -m econ.cli dev agents check"
   dev_validate_command: "python -m econ.cli dev validate --all"
   timeout_s: 900
   require_tests_for_risk: 1

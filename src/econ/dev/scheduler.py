@@ -65,6 +65,8 @@ class DevScheduler:
                 break
             if self.budget.remaining <= 0:
                 break
+            if task.limits.max_usd > self.budget.remaining:
+                continue
             if any(claims_conflict(task.scope.allow, claim) for claim in claims):
                 continue
             selected.append(task)

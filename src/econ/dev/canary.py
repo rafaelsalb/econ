@@ -90,6 +90,7 @@ def _canary_policy() -> DevPolicy:
     policy = DevPolicy()
     policy.gates.check_command = None
     policy.gates.agents_check_command = None
+    policy.gates.dev_agents_check_command = None
     policy.gates.dev_validate_command = None
     policy.gates.full_tests = True
     policy.gates.full_test_command = "python -m pytest -q"

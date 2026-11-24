@@ -329,6 +329,11 @@ class GateRunner:
             "agents_check", self.policy.gates.agents_check_command
         )
 
+    def gate_dev_agents_check(self) -> GateResult:
+        return self._gate_from_command(
+            "dev_agents_check", self.policy.gates.dev_agents_check_command
+        )
+
     def gate_dev_validate(self) -> GateResult:
         return self._gate_from_command(
             "dev_validate", self.policy.gates.dev_validate_command
@@ -486,6 +491,7 @@ class GateRunner:
         for gate in (
             self.gate_check,
             self.gate_agents_check,
+            self.gate_dev_agents_check,
             self.gate_dev_validate,
             self.gate_red_green,
             self.gate_lockbox,
