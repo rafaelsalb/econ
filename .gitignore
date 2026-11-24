@@ -1,0 +1,28 @@
+# Local environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# Generated research runs (large, reproducible from the registry)
+runs/
+
+# Immutable API pulls; curated data and its manifest are tracked
+data/raw/
+
+# Agent scratch space inside worktrees
+.dev/
+
+# Local secrets and editor files
+.env
+.env.*
+!.env.example
+.DS_Store
+*.swp
+*.swo
+
+# Transient reports never meant for the repo
+reports/*.tmp
