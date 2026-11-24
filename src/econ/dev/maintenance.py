@@ -40,6 +40,11 @@ def run_maintenance(
     checks.append(_run(repo, [sys.executable, "-m", "econ.cli", "dev", "agents", "check"]))
     checks.append(_run(repo, [sys.executable, "-m", "econ.cli", "dev", "validate", "--all"]))
     failed = [check for check in checks if check["exit_code"] != 0]
+    from .canary import proposed_dir
+
+    proposed_canaries = sorted(
+        path.name for path in proposed_dir(repo).glob("*.yaml")
+    )
     dashboard = write_dashboard(repo)
     digest = daily_digest(repo, days=1)
     report_path = repo / "reports" / "dev_maintenance.md"
@@ -53,12 +58,20 @@ def run_maintenance(
     for check in checks:
         mark = "PASS" if check["exit_code"] == 0 else "FAIL"
         lines.append(f"- [{mark}] `{check['command']}` (exit {check['exit_code']})")
+    if proposed_canaries:
+        lines += [
+            "",
+            "Generated canaries awaiting human promotion "
+            "(`econ dev canary --promote <ID>` after curating the demo): "
+            + ", ".join(proposed_canaries),
+        ]
     lines += ["", digest]
     report_path.write_text("\n".join(lines))
     info = {
         "ok": not failed,
         "failed": [check["command"] for check in failed],
         "checks": checks,
+        "proposed_canaries": proposed_canaries,
         "report": str(report_path),
         "dashboard": dashboard["html"],
         "issue": None,

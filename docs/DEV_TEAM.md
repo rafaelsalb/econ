@@ -40,6 +40,11 @@ contracts only) → implementer → verifier → gates; the lead, architect,
 reviewers, and science guard are risk ≥ 2 controls. The gates and the blind
 clean-tree verification run for every tier.
 
+The canary suite grows from real failures: a failed run or a budget-exhausted
+escalation writes a *proposed* canary under `dev/evals/canary/proposed/`;
+a human curates the demo fixture and promotes it with `econ dev canary
+--promote`. Nothing runs from `proposed/` until then.
+
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents
 are not visible inside it.
@@ -175,6 +180,7 @@ econ dev report --digest --days 1
 econ dev sync --pull --promote             # GitHub issues → task contracts
 econ dev sync --push                       # status back to issues
 econ dev canary --run --fake               # held-out pipeline evaluation
+econ dev canary --promote CANARY-004        # human step: curate, then promote
 econ dev smoke --fake                      # one end-to-end fake-agent run
 econ dev maintenance --create-issue        # nightly deterministic gate
 econ dev release --bump patch --dry-run

@@ -161,12 +161,14 @@ class DevPipeline:
             artifacts.write_json(
                 "error.json", {"type": type(exc).__name__, "error": str(exc)}
             )
-            return self._finish(
+            outcome = self._finish(
                 task,
                 artifacts,
                 "failed",
                 {"reason": f"{type(exc).__name__}: {exc}"},
             )
+            self._maybe_propose_canary(task, artifacts, outcome)
+            return outcome
 
         if outcome.status == "approved" and not self.shadow:
             if not self.auto_merge:
@@ -193,6 +195,7 @@ class DevPipeline:
                 {**outcome.decision, "reason": "shadow mode: no merge", "shadow": True},
                 outcome=outcome,
             )
+        self._maybe_propose_canary(task, artifacts, outcome)
         return outcome
 
     def finalize_merge(self, task_id: str) -> Outcome:
@@ -229,6 +232,44 @@ class DevPipeline:
         return self._merge(task, artifacts, outcome, merge=True)
 
     # -- setup / packets ---------------------------------------------------
+    def _maybe_propose_canary(
+        self, task: Task, artifacts: RunArtifacts, outcome: Outcome
+    ) -> None:
+        """Grow the canary suite from real failures.
+
+        A failed run, or an escalation after the round budget was exhausted,
+        generates a proposed canary contract for a human to curate and
+        promote. Policy escalations inside the budget (dependency sign-off,
+        verifier verdicts on round one) are the system working and generate
+        nothing. Canary generation must never break the run it records.
+        """
+        from .canary import propose_canary_from_task
+
+        if self.shadow or task.source.kind == "canary":
+            return
+        if outcome.status not in {"failed", "escalated"}:
+            return
+        max_rounds = min(
+            task.limits.max_review_rounds, self.policy.budget.max_review_rounds
+        )
+        state_round = int(artifacts.load_state().get("round") or 0)
+        if outcome.status != "failed" and state_round < max_rounds:
+            return
+        try:
+            path = propose_canary_from_task(
+                self.repo,
+                task,
+                status=outcome.status,
+                reason=str(outcome.decision.get("reason", "")),
+                rounds=max(state_round, int(outcome.rounds or 0)),
+            )
+        except Exception as exc:  # noqa: BLE001
+            artifacts.append_event("canary_proposal_failed", error=str(exc))
+            return
+        if path is not None:
+            outcome.decision["canary_proposed"] = str(path)
+            artifacts.append_event("canary_proposed", path=str(path))
+
     def _load(self, task_ref: str | Path) -> Task:
         if isinstance(task_ref, Path) or str(task_ref).endswith(".yaml"):
             return self.store.load_path(Path(task_ref))

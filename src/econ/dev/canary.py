@@ -4,12 +4,12 @@ import json
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import yaml
 
-from .models import Task, validate_task
+from .models import Source, Task, validate_task
 from .pipeline import DevPipeline
 from .policy import DevPolicy
 from .runner import FakeRunner
@@ -18,6 +18,94 @@ from .tasks import TaskStore
 
 def canary_dir(repo: Path) -> Path:
     return repo / "dev" / "evals" / "canary"
+
+
+def proposed_dir(repo: Path) -> Path:
+    """Generated canary contracts await human promotion here.
+
+    `load_canaries` globs only the suite directory, so nothing in here runs
+    until a human curates the demo fixture and promotes it.
+    """
+    return canary_dir(repo) / "proposed"
+
+
+def next_canary_id(repo: Path) -> str:
+    ids = {task.id for task in load_canaries(repo)}
+    ids |= {path.stem for path in proposed_dir(repo).glob("*.yaml")}
+    number = 1
+    while f"CANARY-{number:03d}" in ids:
+        number += 1
+    return f"CANARY-{number:03d}"
+
+
+def propose_canary_from_task(
+    repo: Path,
+    task: Task,
+    *,
+    status: str,
+    reason: str,
+    rounds: int,
+) -> Path | None:
+    """Turn a failed task run into a proposed canary contract.
+
+    The canary suite grows from real failures instead of only hand-written
+    examples. The generated contract is inert until a human curates it
+    (especially the demo fixture and the expected outcome in `notes`) and
+    promotes it with `promote_canary`.
+    """
+    if task.source.kind == "canary":
+        return None
+    canary = Task(
+        id=next_canary_id(repo),
+        title=f"Regression canary from {task.id}",
+        status="proposed",
+        risk=task.risk,
+        priority=task.priority,
+        created=date.today().isoformat(),
+        goal=task.goal,
+        acceptance=task.acceptance,
+        scope=task.scope,
+        limits=task.limits,
+        source=Source(kind="canary"),
+        demo=task.demo,
+        notes=(
+            f"Auto-generated from {task.id} (terminal status={status}, "
+            f"rounds={rounds}). Original failure: {reason[:200]} "
+            "Expected outcome: the contract completes within its round "
+            "budget. Curate the demo fixture and this note before promotion."
+        ),
+    )
+    path = proposed_dir(repo) / f"{canary.id}.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(
+            canary.model_dump(mode="json", exclude_none=True), sort_keys=False
+        )
+    )
+    return path
+
+
+def promote_canary(
+    repo: Path, canary_id: str, policy: DevPolicy | None = None
+) -> tuple[Task, Path]:
+    """Human step: validate a proposed canary and move it into the suite."""
+    proposed = proposed_dir(repo) / f"{canary_id}.yaml"
+    if not proposed.exists():
+        raise ValueError(f"{canary_id}: no proposed canary at {proposed}")
+    task = Task.model_validate(yaml.safe_load(proposed.read_text()))
+    if task.demo is None:
+        raise ValueError(
+            f"{canary_id}: canaries must carry a deterministic demo fixture; "
+            "write one before promotion (the suite runs the fake runner)"
+        )
+    problems = validate_task(task, policy)
+    if problems:
+        raise ValueError(f"{canary_id}: " + "; ".join(problems))
+    target = canary_dir(repo) / f"{canary_id}.yaml"
+    if target.exists():
+        raise ValueError(f"{canary_id} is already in the suite")
+    proposed.replace(target)
+    return task, target
 
 
 def load_canaries(repo: Path) -> list[Task]:

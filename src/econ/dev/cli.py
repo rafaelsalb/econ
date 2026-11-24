@@ -102,6 +102,12 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     canary.add_argument("--only", default=None)
     canary.add_argument("--keep", action="store_true")
     canary.add_argument("--fake", action="store_true", default=True)
+    canary.add_argument(
+        "--promote",
+        default=None,
+        metavar="ID",
+        help="human step: promote a generated canary into the suite",
+    )
 
     smoke = sp.add_parser("smoke", help="end-to-end fake-agent pipeline smoke test")
     smoke.add_argument("--keep", action="store_true")
@@ -359,6 +365,15 @@ def _sync(args: argparse.Namespace) -> None:
 
 
 def _canary(args: argparse.Namespace) -> None:
+    if args.promote:
+        from .canary import promote_canary
+
+        try:
+            canary, path = promote_canary(_repo(), args.promote, load_policy(_repo()))
+        except ValueError as exc:
+            raise SystemExit(f"promote failed: {exc}") from exc
+        print(f"promoted {canary.id} into the suite: {path}")
+        return
     if args.run:
         results = run_canaries(
             _repo(), only=args.only, keep=args.keep, fake=args.fake
