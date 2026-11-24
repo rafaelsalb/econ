@@ -1,0 +1,238 @@
+school: new_keynesian
+model_id: new_keynesian
+version: 1.0.1
+status: frozen
+frozen_at: "2026-11-23"
+primary_target: ipca_12m
+validation_end: "2019-12-31"
+description: >
+  Monthly semi-structural New Keynesian QPM for Brazil. A hybrid NK Phillips
+  curve with survey expectations and an output gap, an IS curve driven by the
+  ex-ante real Selic rate, and a Taylor rule with an imposed neutral real rate.
+  GDP is a satellite bridge from IBC-Br; it is shared with the IBC-Br benchmark
+  and is not evidence for the New Keynesian block.
+
+changelog:
+  - version: 1.0.0
+    note: Initial pre-registration.
+  - version: 1.0.1
+    note: >
+      Data-contract and gate corrections before the second loop run. The
+      estimation start is now explicitly 2005-01 (the code previously began in
+      2003 because of the IBC-Br availability). The COVID dummy is used in
+      forecasts only when the origin is already inside the COVID window. The
+      gap description now states that the HP filter is two-sided within the
+      estimation sample, re-estimated at each origin, with no post-origin data.
+      GDP is marked as a shared satellite, not a school-specific forecast.
+      Refutation tests are machine-readable. Validation targets are purged at
+      the validation end so that no 2020 outcome enters model selection.
+
+equations:
+  is: >
+    gap_t = a0 + a1*gap_{t-1} + a2*gap_{t-2} + a3*(r_{t-1} - r*) + e_t,
+    where r_{t-1} = selic_{t-1} - Focus12m_{t-1} and r* = 4.0 is calibrated.
+  nkpc: >
+    pi_t = c + b1*pi_{t-1} + b2*pi_{t-2} + (1 - b1 - b2)*pi_e_t
+           + b4*gap_{t-1} + b5*dfx_{t-1} + e_t,
+    with long-run neutrality imposed (b1 + b2 + b3 = 1).
+  taylor: >
+    i_t - target_t - r* = rho*(i_{t-1} - target_t - r*)
+      + g1*(pi12_{t-1} - target_t) + g2*gap_{t-1} + e_t.
+    R3 replaces pi12_{t-1} with the Focus 12m expectation at t.
+  gdp_bridge: >
+    gdp_qq_t = c0 + c1*ibc_qq_t + c2*ibc_qq_{t-1} + e_t.
+    R1 constructs the IBC-Br path from trend growth plus gap changes.
+    R2/R3 construct it from an AR(1) on monthly IBC-Br growth. The R2/R3 path
+    is identical to the IBC-Br benchmark by construction; this is a satellite,
+    not evidence for the New Keynesian block.
+  expectations: >
+    pi_e_t is the monthly equivalent of the Focus 12-month-ahead median:
+    ((1 + focus12/100)^(1/12) - 1)*100. Survey expectations, not
+    model-consistent expectations.
+  gap: >
+    gap_t = 100*(log(IBC-Br_t) - HP_trend(log(IBC-Br_t))) with lambda = 129600.
+    The filter is two-sided within the estimation sample and is re-estimated at
+    each origin on data through the origin. No observation after the origin is
+    used. Endpoint estimates are biased and subject to revision.
+
+observables:
+  pi:
+    series: ipca_m
+    freq: M
+    transform: none
+    release_lag_days: 10
+  activity:
+    series: ibc_br
+    freq: M
+    transform: log, HP cycle
+    release_lag_days: 20
+  policy_rate:
+    series: selic_target
+    freq: D
+    transform: month-end last
+    release_lag_days: 0
+  expectations:
+    series: focus_ipca_12m
+    freq: D
+    transform: month-end last, monthly equivalent
+    release_lag_days: 0
+  fx:
+    series: fx_usdbrl
+    freq: M
+    transform: 100*dlog
+    release_lag_days: 1
+  gdp:
+    series: gdp_qq
+    freq: Q
+    transform: none
+    release_lag_days: 60
+    role: satellite
+    shared_with: ibc_bridge
+  inflation_target:
+    series: data/reference/inflation_targets.csv
+    freq: annual
+    transform: year-end target
+
+identification: >
+  IS curve: OLS with Newey-West (12 lags). The real-rate coefficient is
+  identified by variation in the ex-ante real Selic rate; r* is calibrated, not
+  estimated. NKPC: OLS with HAC; homogeneity is imposed, so the expectations
+  coefficient is 1 - b1 - b2 rather than freely estimated. Taylor rule: OLS
+  with HAC and the neutral real rate imposed, so the constant is not free.
+  The output gap is a filtered observable, not a latent state estimated by
+  Kalman filter. The model is estimated equation-by-equation; no system
+  estimator, no GMM, no IV. This is a forecasting QPM, not a full DSGE.
+  Simultaneity between the policy rate and inflation is a known limitation.
+
+calibration:
+  rstar: 4.0
+  hp_lambda: 129600
+  estimation_start: "2005-01-01"
+  covid_dummy: "2020-03..2020-12; in estimation when identified; in forecasts only when the origin is inside the window"
+  inflation_target_source: "CMN annual targets; continuous 3.0% target from 2025"
+
+estimation:
+  method: OLS with Newey-West HAC standard errors (12 lags)
+  frequency: monthly
+  start: "2005-01"
+  sample: expanding window
+  software: statsmodels 0.15
+
+forecast_recipe: >
+  At origin t (last business day of month M): IPCA and IBC-Br are available
+  through M-1; the Selic target and Focus 12m are available through t. The
+  Focus 12m expectation is held at its origin value in monthly-equivalent
+  terms. FX is a random walk after the first forecast month (dfx = 0). The
+  COVID dummy is set to 1 for forecast months inside 2020-03..2020-12 only when
+  the origin itself is inside that window; a pre-COVID origin cannot know the
+  regime, so the dummy is 0 for its forecast months. The policy rate path is
+  iterated from the Taylor rule; the gap and inflation paths are iterated from
+  the IS and NKPC. GDP is mapped by the shared satellite bridge. The 12-month
+  IPCA rate is derived by compounding the monthly path; it is never forecast
+  directly.
+
+refutation_conditions:
+  - A negative or statistically insignificant output-gap coefficient in the NKPC across sub-samples would refute the model's core transmission channel.
+  - A non-positive FX pass-through coefficient would refute the declared external channel.
+  - A non-negative real-rate coefficient in the IS curve would refute the demand channel.
+  - A non-positive inflation response in the Taylor rule, or a smoothing coefficient outside (0,1), would refute the policy block.
+  - Failure of Mincer-Zarnowitz calibration at the 12-month inflation horizon after the revision ladder would refute the model's forecasting claim.
+  - Failure to add value over the Focus consensus at the core horizons would refute the claim that the structural block is useful beyond the survey anchor.
+
+refutation_tests:
+  - id: nkpc_gap_significance
+    block: nkpc
+    key: gap_1
+    stat: tstat
+    op: abs_ge
+    threshold: 1.65
+    code: D1
+    severity: high
+    message: "Output-gap coefficient in the NKPC is statistically insignificant; the card's core transmission refutation condition is triggered."
+  - id: fx_pass_through_sign
+    block: nkpc
+    key: dfx_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "FX pass-through coefficient is non-positive; the external channel violates the declared sign restriction."
+  - id: is_real_rate_sign
+    block: is
+    key: rr
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Real-rate coefficient in the IS curve is non-negative; the demand channel is refuted."
+  - id: taylor_inflation_sign
+    block: taylor
+    key: pi_gap
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Taylor-rule inflation response is non-positive; the policy block is refuted."
+
+discriminating_predictions:
+  - A positive output gap raises inflation with a lag; a shock that lowers the gap lowers inflation. A purely statistical benchmark cannot produce this conditional prediction.
+  - A persistent inflation shock raises the Selic more than one-for-one in the long run (Taylor principle), and the real rate rises.
+  - Inflation converges to the survey anchor, not mechanically to the target; the gap between Focus and target is itself informative.
+  - A fiscal or external shock that moves the gap and FX has a signable, decomposable effect on inflation.
+
+known_limitations:
+  - Survey expectations are treated as an anchor, not as model-consistent one-step-ahead forecasts.
+  - The HP filter is two-sided within the estimation sample; endpoint estimates are biased and revised.
+  - Equation-by-equation OLS ignores simultaneity between the policy rate, the gap, and inflation.
+  - The GDP block is a satellite bridge, not a structural IS curve, and is shared with the IBC-Br benchmark.
+  - The model is monthly and cannot capture intra-month Copom timing.
+  - The COVID dummy is a regime crutch; it is not a structural shock.
+  - Pseudo-vintages use release dates but not revision history.
+
+revision_policy:
+  max_rounds: 3
+  frozen_before_estimation: true
+  lockbox_visible: false
+  R1: baseline specification described above.
+  R2: replace the gap-implied IBC-Br path in the GDP satellite bridge with an AR(1) path on monthly IBC-Br growth. Targets the satellite mapping only; it cannot fix a structural refutation.
+  R3: replace lagged 12-month inflation in the Taylor rule with the Focus 12-month expectation (forward-looking rule). Keeps R2. Targets the Selic path only.
+  forbidden:
+    - adding new variables not declared in this card
+    - changing the estimation sample to improve scores
+    - using the lockbox for any decision
+    - more than one new hypothesis per round
+    - editing the card inside the loop
+
+pass_criteria:
+  blocking_high: [D1-refutation, D2, D3, D6, D7-sign]
+  core_target: ipca_12m
+  core_horizons: [6, 12]
+  core_rule: >
+    Theil U <= 1.05 vs random walk and MZ slope p >= 0.05 at h=6 and h=12,
+    and no significant loss to the Focus consensus (DM p >= 0.10 or
+    focus_ratio <= 1.05), and a documented value-added win over Focus at one
+    core horizon or a validation episode.
+  auxiliary_rule: >
+    Selic h=12: Theil U <= 1.05 and MZ p >= 0.05; otherwise
+    PASS_WITH_LIMITATIONS after the ladder. GDP is a satellite and is excluded
+    from the school's gate and mean rank.
+  medium_defects: >
+    D4 residual autocorrelation and a small output-gap magnitude are recorded
+    as limitations, not blockers, unless a refutation test fires.
+  terminal_states: [PASS, PASS_WITH_LIMITATIONS, REJECTED, UNESTIMABLE, UNRESOLVED]
+
+data_policy: >
+  Curated observations carry reference, release, and vintage dates. Pseudo-
+  vintages are built from release lags; revision history is not available for
+  most Brazilian series. Evaluation uses final-vintage outcomes only in the
+  evaluator. Validation targets are purged at 2019-12-31 so that no lockbox
+  outcome enters model selection. The lockbox 2020-01..2026-10 is sealed.
+
+provenance:
+  data_source: "BCB SGS/Olinda, IBGE SIDRA"
+  data_hash: "recorded in registry manifest"
+  code_hash: "recorded in registry manifest"
+  spec_hash: "sha256 of this file"

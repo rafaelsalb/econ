@@ -1,0 +1,50 @@
+{
+  "invocation_id": "critic_adequacy-ece34743",
+  "run_id": "a49763c077849e63-r1",
+  "role": "critic_adequacy",
+  "timestamp": "2026-11-23T23:54:32",
+  "argv": [
+    "opencode",
+    "run",
+    "--agent",
+    "econ-critic_adequacy",
+    "--model",
+    "opencode-go/deepseek-v4.1-flash#max",
+    "--format",
+    "json",
+    "Read /workspace/in/packet.md and the files it names. Write the required JSON artifact to /workspace/out/result.json. Do not access anything outside /workspace."
+  ],
+  "image": "econ-agent:latest",
+  "network": "offline",
+  "env_keys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "http_proxy",
+    "https_proxy"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 1,
+  "duration_s": 7.052,
+  "timed_out": false,
+  "stdout_sha256": "a2a82a127f3f1f3ce3e35904ecf495b663ac380c385ce5671c124503516034e1",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "a49763c077849e63-r1",
+    "role": "critic_adequacy",
+    "invocation_id": "critic_adequacy-ece34743",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/a49763c077849e63-r1/critic_adequacy-ece34743",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/a49763c077849e63-r1/critic_adequacy-ece34743/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/a49763c077849e63-r1/critic_adequacy-ece34743/out"
+  },
+  "agent_id": "econ-critic_adequacy",
+  "model": "opencode-go/deepseek-v4.1-flash#max"
+}

@@ -1,0 +1,245 @@
+{
+  "late": {
+    "origin": "2019-12-31",
+    "variant": "R1",
+    "nobs": {
+      "fiscal_reaction": 153,
+      "inflation": 153,
+      "activity": 153,
+      "policy": 153
+    },
+    "sample_start": "2007-01",
+    "sample_end": "2019-11",
+    "sample_n": 155,
+    "rsquared": {
+      "fiscal_reaction": 0.7222408388774676,
+      "inflation": 0.4015725961662946,
+      "activity": 0.05184784912671392,
+      "policy": 0.9808212696547803
+    },
+    "condition": {
+      "fiscal_reaction": 630.1411604265847,
+      "inflation": 962.9428214183822,
+      "activity": 44.13755753852649,
+      "policy": 651.3608125890005
+    },
+    "ljung_box_p": {
+      "fiscal_reaction": 8.128090644185003e-228,
+      "inflation": 0.046132846620749374,
+      "activity": 0.8693281954731882,
+      "policy": 1.8656955128568994e-14
+    },
+    "resid_sd": {
+      "fiscal_reaction": 1.1408098729259966,
+      "inflation": 0.22106445248738504,
+      "activity": 0.8020123246594957,
+      "policy": 0.3581159565827246
+    },
+    "params": {
+      "fiscal_reaction": {
+        "const": -15.894687031075144,
+        "debt_gdp_1": 0.22272612532430408,
+        "ibc_g_1": -0.20418986900671987,
+        "selic_target_1": 0.14514083810400602
+      },
+      "inflation": {
+        "const": 0.8379680585477307,
+        "ipca_m_1": 0.535789656911405,
+        "primary_balance_12m_1": 0.02618402542218239,
+        "debt_gdp_1": -0.009891973034974973,
+        "fx_g_1": 0.0011051292207037385,
+        "ibc_g_1": -0.025548128735611454
+      },
+      "activity": {
+        "const": 0.6995752972491117,
+        "ibc_g_1": 0.09498764669446233,
+        "real_rate": -0.061365195869553954
+      },
+      "policy": {
+        "const": 0.5865489219832197,
+        "selic_target_1": 0.9769490088671278,
+        "ipca_m_1": 0.38565998401785806,
+        "ibc_g_1": -0.00874442127534845,
+        "debt_gdp_1": -0.009396170774772465
+      }
+    },
+    "tstats": {
+      "fiscal_reaction": {
+        "const": -6.597351872789537,
+        "debt_gdp_1": 7.924416046686924,
+        "ibc_g_1": -1.141343768721668,
+        "selic_target_1": 1.358795928721033
+      },
+      "inflation": {
+        "const": 4.268930719688844,
+        "ipca_m_1": 6.535755340159915,
+        "primary_balance_12m_1": 1.7996289337443157,
+        "debt_gdp_1": -3.338981577227062,
+        "fx_g_1": 0.2822029634747275,
+        "ibc_g_1": -0.6125328934470086
+      },
+      "activity": {
+        "const": 3.1866634601672894,
+        "ibc_g_1": 0.5687193409939565,
+        "real_rate": -2.614363762962568
+      },
+      "policy": {
+        "const": 1.1086565137024869,
+        "selic_target_1": 62.41971060569634,
+        "ipca_m_1": 3.575365255245994,
+        "ibc_g_1": -0.35000433784580187,
+        "debt_gdp_1": -1.5057202975230335
+      }
+    },
+    "leak_ok": true,
+    "max_release": "2019-12-31"
+  },
+  "stability": {
+    "activity": {
+      "const": {
+        "before": 1.1558058019124045,
+        "after": 0.6995752972491117,
+        "sign_flip": false,
+        "abs_change": 0.45623050466329274
+      },
+      "ibc_g_1": {
+        "before": 0.25167931123361337,
+        "after": 0.09498764669446233,
+        "sign_flip": false,
+        "abs_change": 0.15669166453915104
+      },
+      "real_rate": {
+        "before": -0.10388404549684668,
+        "after": -0.061365195869553954,
+        "sign_flip": false,
+        "abs_change": 0.04251884962729273
+      },
+      "_sign_flips": 0
+    },
+    "fiscal_reaction": {
+      "const": {
+        "before": -12.290192768226396,
+        "after": -15.894687031075144,
+        "sign_flip": false,
+        "abs_change": 3.604494262848748
+      },
+      "debt_gdp_1": {
+        "before": 0.21333744162230706,
+        "after": 0.22272612532430408,
+        "sign_flip": false,
+        "abs_change": 0.009388683701997025
+      },
+      "ibc_g_1": {
+        "before": -0.42962810122557704,
+        "after": -0.20418986900671987,
+        "sign_flip": false,
+        "abs_change": 0.22543823221885717
+      },
+      "selic_target_1": {
+        "before": -0.14769446473753137,
+        "after": 0.14514083810400602,
+        "sign_flip": true,
+        "abs_change": 0.29283530284153736
+      },
+      "_sign_flips": 1
+    },
+    "inflation": {
+      "const": {
+        "before": 0.42588025480707253,
+        "after": 0.8379680585477307,
+        "sign_flip": false,
+        "abs_change": 0.4120878037406582
+      },
+      "debt_gdp_1": {
+        "before": -0.002849191409122005,
+        "after": -0.009891973034974973,
+        "sign_flip": false,
+        "abs_change": 0.007042781625852968
+      },
+      "fx_g_1": {
+        "before": -0.0009901621297640105,
+        "after": 0.0011051292207037385,
+        "sign_flip": true,
+        "abs_change": 0.002095291350467749
+      },
+      "ibc_g_1": {
+        "before": 0.024305669998807993,
+        "after": -0.025548128735611454,
+        "sign_flip": true,
+        "abs_change": 0.04985379873441945
+      },
+      "ipca_m_1": {
+        "before": 0.626698352236028,
+        "after": 0.535789656911405,
+        "sign_flip": false,
+        "abs_change": 0.09090869532462298
+      },
+      "primary_balance_12m_1": {
+        "before": 0.03785469194644352,
+        "after": 0.02618402542218239,
+        "sign_flip": false,
+        "abs_change": 0.011670666524261127
+      },
+      "_sign_flips": 2
+    },
+    "policy": {
+      "const": {
+        "before": -0.06394469950839721,
+        "after": 0.5865489219832197,
+        "sign_flip": true,
+        "abs_change": 0.6504936214916169
+      },
+      "debt_gdp_1": {
+        "before": 0.0018638567603069302,
+        "after": -0.009396170774772465,
+        "sign_flip": true,
+        "abs_change": 0.011260027535079396
+      },
+      "ibc_g_1": {
+        "before": -0.011535429261119735,
+        "after": -0.00874442127534845,
+        "sign_flip": false,
+        "abs_change": 0.0027910079857712856
+      },
+      "ipca_m_1": {
+        "before": 0.37427842514527043,
+        "after": 0.38565998401785806,
+        "sign_flip": false,
+        "abs_change": 0.011381558872587627
+      },
+      "selic_target_1": {
+        "before": 0.9803969449009133,
+        "after": 0.9769490088671278,
+        "sign_flip": false,
+        "abs_change": 0.0034479360337855702
+      },
+      "_sign_flips": 2
+    }
+  },
+  "sanity": {
+    "ipca_m": {
+      "min": 0.003520144892822808,
+      "max": 0.39960194568687757,
+      "finite": true,
+      "in_range": true
+    },
+    "ipca_12m": {
+      "min": 1.325960722554509,
+      "max": 2.749654154969061,
+      "finite": true,
+      "in_range": true
+    },
+    "gdp_qq": {
+      "min": 1.2077805178996357,
+      "max": 1.7903389626949708,
+      "finite": true,
+      "in_range": true
+    },
+    "selic": {
+      "min": 0.9047288136835833,
+      "max": 4.5,
+      "finite": true,
+      "in_range": true
+    }
+  }
+}

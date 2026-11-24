@@ -1,0 +1,46 @@
+{
+  "run_id": "2a35897058a3cdc5",
+  "models": [
+    "focus_consensus",
+    "monetarist",
+    "random_walk"
+  ],
+  "config": {
+    "start": "2010-01-01",
+    "end": "2019-12-31",
+    "embargo_until": "2019-12-31",
+    "models": [
+      "random_walk",
+      "focus_consensus",
+      "monetarist"
+    ],
+    "model_kwargs": {
+      "monetarist": {
+        "variant": "R1"
+      }
+    },
+    "estimation_start": "2000-01-01"
+  },
+  "seed": 7,
+  "data_hash": "14b49d7a27ffc32f5b329420c1b05c08a4b37215bf3b644d6da8e29f982f8ca8",
+  "code_hash": "3586b18214f83e0b7886cac5ca42f20b3f777c5a4b0df7103285bcf8e4b2f852",
+  "spec_hashes": {
+    "focus_consensus": "",
+    "monetarist": "e3162bcbdf1265f4f78e4325da417b84b52d8336c4005851ffa26645e417413a",
+    "random_walk": ""
+  },
+  "created_at": "2026-11-24T01:04:08",
+  "n_forecasts": 8500,
+  "failures": [
+    {
+      "model": "monetarist",
+      "origin": "2010-01-29",
+      "error": "ValueError: bridge: insufficient history"
+    },
+    {
+      "model": "monetarist",
+      "origin": "2010-02-26",
+      "error": "ValueError: bridge: insufficient history"
+    }
+  ]
+}

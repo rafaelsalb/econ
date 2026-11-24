@@ -1,0 +1,148 @@
+{
+  "model_id": "pk_sfc",
+  "card_hash": "ba493755c9599700c70091d1e0918743d727c0e31eb89f691b8482eb43e74896",
+  "validation_window": [
+    "2010-01-01",
+    "2019-12-31"
+  ],
+  "max_rounds": 1,
+  "history": [
+    {
+      "round": 1,
+      "variant": "R1",
+      "run_id": "893c058bf19467b9",
+      "status": "REJECTED",
+      "reason": "high-severity defects remain",
+      "n_high": 10,
+      "n_medium": 10,
+      "defect_codes": [
+        "D4",
+        "D5",
+        "D7"
+      ]
+    }
+  ],
+  "terminal": {
+    "status": "REJECTED",
+    "reason": "high-severity defects remain",
+    "blocking": [
+      {
+        "code": "D7",
+        "severity": "high",
+        "message": "Consumption responds positively to the real rate; the interest-rate channel is refuted.",
+        "evidence": {
+          "test": "consumption_rate",
+          "block": "consumption",
+          "key": "real_rate_1",
+          "stat": "coef",
+          "value": 655.1163708585125,
+          "threshold": 0.0
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D7",
+        "severity": "high",
+        "message": "Deflator inflation persistence is non-positive.",
+        "evidence": {
+          "test": "deflator_persistence",
+          "block": "deflator",
+          "key": "pi_deflator_1",
+          "stat": "coef",
+          "value": -0.6117846376273235,
+          "threshold": 0.0
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D4",
+        "severity": "high",
+        "message": "Severe multicollinearity in consumption (cond=4476235.5)",
+        "evidence": {
+          "equation": "consumption",
+          "condition": 4476235.495617835
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D4",
+        "severity": "high",
+        "message": "Severe multicollinearity in investment (cond=4476235.5)",
+        "evidence": {
+          "equation": "investment",
+          "condition": 4476235.495617835
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D4",
+        "severity": "high",
+        "message": "Severe multicollinearity in government (cond=540311.9)",
+        "evidence": {
+          "equation": "government",
+          "condition": 540311.9112632747
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D4",
+        "severity": "high",
+        "message": "Severe multicollinearity in exports (cond=289566.5)",
+        "evidence": {
+          "equation": "exports",
+          "condition": 289566.54484099953
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D4",
+        "severity": "high",
+        "message": "Severe multicollinearity in imports (cond=4298493.7)",
+        "evidence": {
+          "equation": "imports",
+          "condition": 4298493.695859678
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D5",
+        "severity": "high",
+        "message": "ipca_12m h=6 does not improve on the Focus consensus (RMSE ratio 1.434, DM p=0.000)",
+        "evidence": {
+          "target": "ipca_12m",
+          "horizon": 6,
+          "focus_ratio": 1.4340408875880453,
+          "dm_focus_p": 6.756789088058213e-05
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D5",
+        "severity": "high",
+        "message": "ipca_12m h=12 fails Mincer-Zarnowitz calibration (p=0.0001)",
+        "evidence": {
+          "target": "ipca_12m",
+          "horizon": 12,
+          "mz_p": 7.660458465208464e-05
+        },
+        "owner": "modeler"
+      },
+      {
+        "code": "D5",
+        "severity": "high",
+        "message": "ipca_12m h=12 does not improve on the Focus consensus (RMSE ratio 1.316, DM p=0.018)",
+        "evidence": {
+          "target": "ipca_12m",
+          "horizon": 12,
+          "focus_ratio": 1.3164759146629128,
+          "dm_focus_p": 0.017867138382646974
+        },
+        "owner": "modeler"
+      }
+    ],
+    "next": null,
+    "round": 1,
+    "variant": "R1",
+    "run_id": "893c058bf19467b9"
+  }
+}

@@ -1,0 +1,178 @@
+school: fiscal_ftpl
+model_id: fiscal_ftpl
+version: 1.0.0
+status: frozen
+frozen_at: "2026-11-24"
+primary_target: ipca_12m
+validation_end: "2019-12-31"
+description: >
+  Fiscal theory of the price level (FTPL) block for Brazil: a fiscal reaction
+  function, a debt-dynamics identity, a fiscal-augmented inflation equation, an
+  activity equation, and a policy rule with a debt term. The school's claim is
+  that fiscal credibility and the debt path carry information about inflation
+  and the exchange rate beyond the output gap.
+
+equations:
+  fiscal_reaction: >
+    pb_t = a0 + a1*debt_{t-1} + a2*ibc_g_{t-1} + a3*selic_{t-1} + e_t,
+    where pb is the 12-month primary balance (% of GDP) and debt is gross
+    general government debt (% of GDP). A non-positive a1 is the FTPL
+    non-Ricardian regime; a positive a1 is a stabilizing/Ricardian response.
+  inflation: >
+    pi_t = b0 + b1*pi_{t-1} + b2*pb_{t-1} + b3*debt_{t-1}
+           + b4*dfx_{t-1} + b5*ibc_g_{t-1} + e_t.
+  activity: >
+    ibc_g_t = c0 + c1*ibc_g_{t-1} + c2*(selic_{t-1} - pi_{t-1}) + e_t.
+  policy: >
+    i_t = d0 + d1*i_{t-1} + d2*pi_{t-1} + d3*ibc_g_{t-1}
+          + d4*debt_{t-1} + e_t.
+  debt: >
+    debt_t = debt_{t-1} + ((i_{t-1} - g_t)/(1 + g_t))*debt_{t-1}
+             - pb_t/12,
+    where g_t is monthly nominal growth. The 12-month primary balance is
+    divided by 12, an approximation.
+  gdp_bridge: >
+    GDP q/q is a satellite bridge on the IBC-Br path. It is not evidence for
+    the fiscal block.
+
+observables:
+  pi: {series: ipca_m, freq: M, transform: none}
+  activity: {series: ibc_br, freq: M, transform: log, output: ibc_g}
+  policy_rate: {series: selic_target, freq: D, transform: month-end}
+  expectations: {series: focus_ipca_12m, freq: D, transform: none, role: reference}
+  debt: {series: debt_gdp, freq: M, transform: none}
+  primary_balance: {series: primary_balance_12m, freq: M, transform: none}
+  fx: {series: fx_usdbrl, freq: M, transform: 100*dlog}
+  gdp: {series: gdp_qq, freq: Q, transform: none, role: satellite, shared_with: ibc_bridge}
+
+identification: >
+  All equations are estimated by OLS with Newey-West HAC (12 lags). The debt
+  identity is accounting, not estimated. The FTPL mechanism is tested by the
+  signs of the fiscal reaction and the debt coefficient in the inflation
+  equation; the model is a reduced-form fiscal block, not a structural FTPL
+  DSGE. The policy rule includes debt as a fiscal response term.
+
+calibration:
+  estimation_start: "2007-01-01"
+  debt_identity: "monthly approximation with pb/12"
+
+estimation:
+  method: OLS with HAC
+  frequency: monthly
+  start: "2007-01"
+  sample: expanding window
+  software: statsmodels
+
+forecast_recipe: >
+  At origin t, fiscal, price, activity and FX series are available through
+  M-1; the Selic target through t. The model iterates the fiscal reaction,
+  activity, inflation, policy rule and debt identity for 15 months. The first
+  13 months supply IPCA and Selic. FX growth is zero after the first forecast
+  month (random walk). The IBC-Br growth path is integrated and mapped to GDP
+  with the shared bridge. The 12-month IPCA rate is derived by compounding.
+
+refutation_conditions:
+  - A positive fiscal reaction to debt would indicate a Ricardian regime and refute the FTPL non-Ricardian mechanism.
+  - A non-positive debt coefficient in the inflation equation would refute the fiscal-inflation channel.
+  - A non-negative primary-balance coefficient in the inflation equation would refute the fiscal-tightening channel.
+  - A policy smoothing coefficient outside (0,1) would refute the policy block.
+  - Failure of the core inflation and Focus gates would refute the forecasting claim.
+
+refutation_tests:
+  - id: ftpl_non_ricardian
+    block: fiscal_reaction
+    key: debt_gdp_1
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Primary balance responds positively to debt; the sample is Ricardian and the FTPL mechanism is refuted."
+  - id: ftpl_debt_inflation
+    block: inflation
+    key: debt_gdp_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Debt lowers inflation; the fiscal-inflation channel has the wrong sign."
+  - id: ftpl_primary_inflation
+    block: inflation
+    key: primary_balance_12m_1
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "A higher primary surplus raises inflation; the fiscal-tightening channel is refuted."
+  - id: policy_persistence
+    block: policy
+    key: selic_target_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Policy smoothing is non-positive."
+  - id: policy_persistence_upper
+    block: policy
+    key: selic_target_1
+    stat: coef
+    op: lt
+    threshold: 1.0
+    code: D7
+    severity: high
+    message: "Policy smoothing is at or above one."
+
+discriminating_predictions:
+  - Fiscal credibility and the debt path move inflation and the exchange rate beyond the output gap.
+  - A weak primary-balance response to debt (non-Ricardian regime) makes inflation sensitive to debt.
+  - A fiscal tightening lowers inflation; a fiscal expansion raises it.
+  - The policy rule responds to debt, not only to inflation and activity.
+
+known_limitations:
+  - The primary balance is a 12-month flow divided by 12 in the monthly debt identity.
+  - The fiscal reaction may be Ricardian; that is a finding, not a nuisance.
+  - The model is a reduced-form fiscal block, not a structural FTPL DSGE.
+  - The policy rule is fiscal-augmented but remains ad hoc.
+  - Debt data start in 2006-12; the common sample starts in 2007.
+  - GDP is a satellite bridge and is excluded from the school's gate.
+  - No real-time vintages for fiscal revisions.
+
+revision_policy:
+  max_rounds: 1
+  frozen_before_estimation: true
+  lockbox_visible: false
+  R1: baseline specification described above.
+  forbidden:
+    - adding new variables not declared in this card
+    - changing the estimation sample to improve scores
+    - using the lockbox for any decision
+    - editing the card inside the loop
+
+pass_criteria:
+  blocking_high: [D1, D2, D3, D6, D7]
+  core_target: ipca_12m
+  core_horizons: [6, 12]
+  core_rule: >
+    Theil U <= 1.05 vs random walk and MZ slope p >= 0.05 at h=6 and h=12,
+    and no significant loss to the Focus consensus (DM p >= 0.10 or
+    focus_ratio <= 1.05).
+  auxiliary_rule: >
+    Selic h=12: Theil U <= 1.05 and MZ p >= 0.05; otherwise
+    PASS_WITH_LIMITATIONS after the ladder. GDP is a satellite and is excluded.
+  medium_defects: >
+    D4 residual autocorrelation and medium D7 issues are limitations. A failed
+    refutation test is blocking.
+  terminal_states: [PASS, PASS_WITH_LIMITATIONS, REJECTED, UNESTIMABLE, UNRESOLVED]
+
+data_policy: >
+  Curated observations carry reference, release, and vintage dates. Validation
+  targets are purged at 2019-12-31. The lockbox 2020-01..2026-10 is sealed.
+
+provenance:
+  data_source: "BCB SGS"
+  data_hash: "recorded in registry manifest"
+  code_hash: "recorded in registry manifest"
+  spec_hash: "sha256 of this file"

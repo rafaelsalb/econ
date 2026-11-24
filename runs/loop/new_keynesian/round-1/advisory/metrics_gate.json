@@ -1,0 +1,27 @@
+[
+  {
+    "target": "gdp_qq",
+    "horizon": 1,
+    "pass": false
+  },
+  {
+    "target": "gdp_qq",
+    "horizon": 4,
+    "pass": false
+  },
+  {
+    "target": "ipca_12m",
+    "horizon": 6,
+    "pass": true
+  },
+  {
+    "target": "ipca_12m",
+    "horizon": 12,
+    "pass": true
+  },
+  {
+    "target": "selic",
+    "horizon": 12,
+    "pass": true
+  }
+]

@@ -1,0 +1,94 @@
+version: 1
+
+# Single source of truth for the research agents.
+# Edit models/variants here, then run: econ agents render
+defaults:
+  model: opencode-go/deepseek-v4.1-flash
+  variant: max
+  steps: 12
+  timeout_s: 900
+  sandbox: offline
+  budget:
+    max_input_tokens: 60000
+    max_output_tokens: 8000
+    max_usd_per_run: 2.00
+    max_calls_per_role: 3
+
+agents:
+  theorist:
+    description: Writes and defends the frozen model card; cannot change it inside the loop.
+    prompt: config/prompts/theorist.md
+    sandbox: offline
+    steps: 8
+    permissions:
+      read: ["in/**"]
+      edit: ["out/**"]
+      shell: []
+
+  modeler:
+    description: Proposes exactly one revision from the pre-registered ladder.
+    prompt: config/prompts/modeler.md
+    sandbox: offline
+    steps: 12
+    permissions:
+      read: ["in/**"]
+      edit: ["out/**"]
+      shell:
+        - "python -m pytest *"
+        - "python -m econ.models.*"
+
+  critic_fidelity:
+    description: Blind school-fidelity and sign critic.
+    prompt: config/prompts/critic_fidelity.md
+    sandbox: offline
+    steps: 12
+    permissions:
+      read: ["in/**"]
+      edit: ["out/**"]
+      shell: []
+
+  critic_adequacy:
+    description: Blind statistical-adequacy and forecast-gate critic.
+    prompt: config/prompts/critic_adequacy.md
+    sandbox: offline
+    steps: 12
+    permissions:
+      read: ["in/**"]
+      edit: ["out/**"]
+      shell:
+        - "python -m econ.audit *"
+
+  librarian:
+    description: Documents data provenance and vintages; never selects model variables.
+    prompt: config/prompts/librarian.md
+    sandbox: data
+    steps: 8
+    permissions:
+      read: ["in/**"]
+      edit: ["out/**"]
+      shell:
+        - "python -m econ.ingest *"
+
+sandbox:
+  runtime: docker
+  fallback: bwrap
+  image: econ-agent:latest
+  user: "1000:1000"
+  limits:
+    cpus: 2
+    memory: 4g
+    pids: 256
+  networks:
+    offline: econ-internal
+    data: econ-data-internal
+  proxy:
+    offline_host: econ-proxy
+    data_host: econ-data-proxy
+    port: 3128
+    offline_hosts: ["opencode.ai", "models.dev"]
+    data_hosts:
+      - "api.bcb.gov.br"
+      - "servicodados.ibge.gov.br"
+      - "olinda.bcb.gov.br"
+  env:
+    allow: ["OPENCODE_API_KEY"]

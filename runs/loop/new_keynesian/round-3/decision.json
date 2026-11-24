@@ -1,0 +1,46 @@
+{
+  "status": "PASS_WITH_LIMITATIONS",
+  "reason": "core and auxiliary gates pass; medium-severity limitations recorded",
+  "limitations": [
+    {
+      "code": "D7",
+      "severity": "medium",
+      "message": "Output-gap transmission is economically negligible (<0.02pp monthly inflation per 1pp gap)",
+      "evidence": {
+        "gap_coef": 0.008188701199785778
+      },
+      "owner": "modeler"
+    },
+    {
+      "code": "D7",
+      "severity": "medium",
+      "message": "FX pass-through coefficient is non-positive; the external channel is not identified",
+      "evidence": {
+        "fx_coef": -0.0004039316878437804
+      },
+      "owner": "modeler"
+    },
+    {
+      "code": "D1",
+      "severity": "medium",
+      "message": "gap coefficient is not precisely estimated (|t| < 1.65)",
+      "evidence": {
+        "block": "nkpc",
+        "key": "gap_1",
+        "tstat": 1.3701837788662155
+      },
+      "owner": "modeler"
+    },
+    {
+      "code": "D4",
+      "severity": "medium",
+      "message": "Residual autocorrelation in taylor equation (Ljung-Box p=0.0000)",
+      "evidence": {
+        "equation": "taylor",
+        "pvalue": 3.2137628462984513e-26
+      },
+      "owner": "modeler"
+    }
+  ],
+  "next": null
+}

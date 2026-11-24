@@ -1,0 +1,1 @@
+{'out_write': True, 'in_write': False, 'eval_absent': True, 'lockbox_absent': True, 'proxy_block': True, 'proxy_error': 'URLError', 'direct_net_block': True}

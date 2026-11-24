@@ -1,0 +1,59 @@
+{
+  "invocation_id": "critic_adequacy-1d63166d",
+  "run_id": "ba353b6662411f29-r1",
+  "role": "critic_adequacy",
+  "timestamp": "2026-11-24T00:33:38",
+  "argv": [
+    "opencode",
+    "run",
+    "--agent",
+    "econ-critic_adequacy",
+    "--model",
+    "opencode-go/deepseek-v4.1-flash#max",
+    "--format",
+    "json",
+    "Read /workspace/in/packet.md and the files it names. Write the required JSON artifact to /workspace/out/result.json. Do not access anything outside /workspace."
+  ],
+  "image": "econ-agent:latest",
+  "network": "offline",
+  "mounts": [
+    "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/in:/workspace/in:ro",
+    "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/out:/workspace/out:rw",
+    "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/home:/home/econ:rw",
+    "/home/rafael-albuquerque/repos/econ/.opencode/agents:/workspace/.opencode/agents:ro",
+    "/home/rafael-albuquerque/repos/econ/opencode.jsonc:/workspace/opencode.jsonc:ro",
+    "/home/rafael-albuquerque/.opencode/bin/opencode:/usr/local/bin/opencode:ro"
+  ],
+  "env_keys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "OPENCODE_API_KEY",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "http_proxy",
+    "https_proxy"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 0,
+  "duration_s": 110.765,
+  "timed_out": false,
+  "stdout_sha256": "6a99a637743e1487612f0f188a33fb9596f31dcda1bb9fcc4e4b2c1bd23155ce",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "ba353b6662411f29-r1",
+    "role": "critic_adequacy",
+    "invocation_id": "critic_adequacy-1d63166d",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/out"
+  },
+  "agent_id": "econ-critic_adequacy",
+  "model": "opencode-go/deepseek-v4.1-flash#max"
+}

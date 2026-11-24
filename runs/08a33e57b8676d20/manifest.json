@@ -1,0 +1,35 @@
+{
+  "run_id": "08a33e57b8676d20",
+  "models": [
+    "fiscal_ftpl",
+    "focus_consensus",
+    "random_walk"
+  ],
+  "config": {
+    "start": "2010-01-01",
+    "end": "2019-12-31",
+    "embargo_until": "2019-12-31",
+    "models": [
+      "random_walk",
+      "focus_consensus",
+      "fiscal_ftpl"
+    ],
+    "model_kwargs": {
+      "fiscal_ftpl": {
+        "variant": "R1"
+      }
+    },
+    "estimation_start": "2000-01-01"
+  },
+  "seed": 7,
+  "data_hash": "14b49d7a27ffc32f5b329420c1b05c08a4b37215bf3b644d6da8e29f982f8ca8",
+  "code_hash": "1bf9b0f9257979a9ea3aa316c039a87d75086b2e70364cdd9f1d574ec99a46fa",
+  "spec_hashes": {
+    "fiscal_ftpl": "c1236e1b26d311fc2d08e38b0d5d45a556ec613739788f8aa9497a24541cf67b",
+    "focus_consensus": "",
+    "random_walk": ""
+  },
+  "created_at": "2026-11-24T01:06:30",
+  "n_forecasts": 8550,
+  "failures": []
+}

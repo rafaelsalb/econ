@@ -1,0 +1,31 @@
+{
+  "run_id": "f1247c25b8813d04",
+  "models": [
+    "new_keynesian",
+    "random_walk"
+  ],
+  "config": {
+    "start": "2010-01-01",
+    "end": "2019-12-31",
+    "models": [
+      "random_walk",
+      "new_keynesian"
+    ],
+    "model_kwargs": {
+      "new_keynesian": {
+        "variant": "R2"
+      }
+    },
+    "estimation_start": "2000-01-01"
+  },
+  "seed": 7,
+  "data_hash": "3658e07c54368b2e6a8fb130b344281e71d2cbc495bcfdab303ded45024c1791",
+  "code_hash": "3aa25ca2e98c7875d5ea055a8b03fe5f2e947ab009a3be4cd0549e4fa1f5c26d",
+  "spec_hashes": {
+    "new_keynesian": "22594f22605187741ef9e58629abe9a060f326a0527ab6d869e26031ec2d43c0",
+    "random_walk": ""
+  },
+  "created_at": "2026-11-23T23:12:38",
+  "n_forecasts": 6000,
+  "failures": []
+}

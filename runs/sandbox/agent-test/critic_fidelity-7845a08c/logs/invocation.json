@@ -1,0 +1,50 @@
+{
+  "invocation_id": "critic_fidelity-7845a08c",
+  "run_id": "agent-test",
+  "role": "critic_fidelity",
+  "timestamp": "2026-11-23T23:52:12",
+  "argv": [
+    "opencode",
+    "run",
+    "--agent",
+    "econ-critic_fidelity",
+    "--model",
+    "opencode-go/deepseek-v4.1-flash#max",
+    "--format",
+    "json",
+    "Read /workspace/in/packet.md and the files it names. Write the required JSON artifact to /workspace/out/result.json. Do not access anything outside /workspace."
+  ],
+  "image": "econ-agent:latest",
+  "network": "offline",
+  "env_keys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "http_proxy",
+    "https_proxy"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 1,
+  "duration_s": 5.962,
+  "timed_out": false,
+  "stdout_sha256": "f19bfca00cdfeeef7c1b70feea0b75bcda620e35a5de8af82648ec9457f56e07",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "agent-test",
+    "role": "critic_fidelity",
+    "invocation_id": "critic_fidelity-7845a08c",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-test/critic_fidelity-7845a08c",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-test/critic_fidelity-7845a08c/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-test/critic_fidelity-7845a08c/out"
+  },
+  "agent_id": "econ-critic_fidelity",
+  "model": "opencode-go/deepseek-v4.1-flash#max"
+}

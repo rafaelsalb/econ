@@ -1,0 +1,24 @@
+{
+  "opened_at": "2026-11-24T01:12:23",
+  "run_id": "db620d60530fb7f6",
+  "data_hash": "14b49d7a27ffc32f5b329420c1b05c08a4b37215bf3b644d6da8e29f982f8ca8",
+  "code_hash": "78c695a959fef6b48ada93dd76f6ffe3fed73667aaad7296722bf31dca782b6f",
+  "models": [
+    "new_keynesian",
+    "monetarist",
+    "fiscal_ftpl",
+    "pk_sfc",
+    "random_walk",
+    "seasonal_naive",
+    "ar",
+    "bvar",
+    "ibc_bridge",
+    "focus_consensus"
+  ],
+  "lockbox_start": "2020-01-01",
+  "lockbox_end": "2026-10-31",
+  "weights_file": "/home/rafael-albuquerque/repos/econ/eval/ensemble_weights.json",
+  "rows": 17430,
+  "force_reason": null,
+  "failures": 0
+}

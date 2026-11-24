@@ -1,0 +1,299 @@
+{
+  "late": {
+    "origin": "2019-12-31",
+    "variant": "R1",
+    "nobs": {
+      "consumption": 50,
+      "investment": 50,
+      "government": 51,
+      "exports": 51,
+      "imports": 51,
+      "deflator": 50,
+      "ipca_bridge": 51
+    },
+    "sample_start": "2006Q4",
+    "sample_end": "2019Q3",
+    "sample_n": 52,
+    "rsquared": {
+      "consumption": 0.8516885164594634,
+      "investment": 0.14672035503386183,
+      "government": 0.08037519100548485,
+      "exports": 0.4166622553818885,
+      "imports": 0.626939157427671,
+      "deflator": 0.5208330513061504,
+      "ipca_bridge": 0.0002501443518760915
+    },
+    "condition": {
+      "consumption": 4476235.495617835,
+      "investment": 4476235.495617835,
+      "government": 540311.9112632747,
+      "exports": 289566.54484099953,
+      "imports": 4298493.695859678,
+      "deflator": 9.425036934066547,
+      "ipca_bridge": 3.7125258597500066
+    },
+    "ljung_box_p": {
+      "consumption": 1.1612576509699624e-08,
+      "investment": 9.687646482293072e-40,
+      "government": 5.883573338668446e-24,
+      "exports": 2.3808585639309322e-08,
+      "imports": 5.98410512999875e-06,
+      "deflator": 4.915922464883947e-07,
+      "ipca_bridge": 0.023502243591442443
+    },
+    "resid_sd": {
+      "consumption": 5583.774239178299,
+      "investment": 7284.624207677998,
+      "government": 5535.387704968651,
+      "exports": 3814.0360532920945,
+      "imports": 3359.722395105366,
+      "deflator": 1.7318285526920558,
+      "ipca_bridge": 0.7112036489544569
+    },
+    "params": {
+      "consumption": {
+        "const": -24410.796475165043,
+        "real_gdp_1": 0.7095306899048573,
+        "real_rate_1": 655.1163708585125
+      },
+      "investment": {
+        "const": 11708.356935423717,
+        "real_gdp_1": 0.1446478507148347,
+        "real_rate_1": -279.2147589655791
+      },
+      "government": {
+        "const": 39817.51305645787,
+        "govt_consumption_real_1": 0.28285785328326296
+      },
+      "exports": {
+        "const": 12174.03717491775,
+        "exports_real_1": 0.6613883346478019,
+        "fx_g_1": 16.276011187421716
+      },
+      "imports": {
+        "const": -19495.706972369186,
+        "real_gdp_1": 0.1982119454265538,
+        "fx_g_1": 127.38764129003255
+      },
+      "deflator": {
+        "const": 2.493045545306471,
+        "pi_deflator_1": -0.6117846376273235,
+        "fx_g_1": 0.04170674220957607,
+        "gdp_g_1": 0.4407861256073955
+      },
+      "ipca_bridge": {
+        "const": 1.3627452669905538,
+        "pi_deflator": 0.0044150879537373025
+      }
+    },
+    "tstats": {
+      "consumption": {
+        "const": -1.9983341262826004,
+        "real_gdp_1": 15.34617225777034,
+        "real_rate_1": 2.9370104237603014
+      },
+      "investment": {
+        "const": 0.5731543845261868,
+        "real_gdp_1": 1.8474578208291124,
+        "real_rate_1": -1.5753035373172013
+      },
+      "government": {
+        "const": 3.4578526903535165,
+        "govt_consumption_real_1": 1.486278577913709
+      },
+      "exports": {
+        "const": 3.0342980207916677,
+        "exports_real_1": 5.778565255054168,
+        "fx_g_1": 0.16455588520988598
+      },
+      "imports": {
+        "const": -3.716526205150993,
+        "real_gdp_1": 10.71674346304438,
+        "fx_g_1": 1.6440827976846208
+      },
+      "deflator": {
+        "const": 9.302505477827578,
+        "pi_deflator_1": -22.026737444152783,
+        "fx_g_1": 1.572038052532551,
+        "gdp_g_1": 4.4114043546546595
+      },
+      "ipca_bridge": {
+        "const": 9.150709986201012,
+        "pi_deflator": 0.218741064814988
+      }
+    },
+    "leak_ok": true,
+    "max_release": "2019-12-31",
+    "identity_error": 0.012929505068486271,
+    "identity_ok": true
+  },
+  "stability": {
+    "consumption": {
+      "const": {
+        "before": -14195.753252109716,
+        "after": -24410.796475165043,
+        "sign_flip": false,
+        "abs_change": 10215.043223055327
+      },
+      "real_gdp_1": {
+        "before": 0.6647730673192696,
+        "after": 0.7095306899048573,
+        "sign_flip": false,
+        "abs_change": 0.0447576225855878
+      },
+      "real_rate_1": {
+        "before": 805.5723426158029,
+        "after": 655.1163708585125,
+        "sign_flip": false,
+        "abs_change": 150.4559717572904
+      },
+      "_sign_flips": 0
+    },
+    "deflator": {
+      "const": {
+        "before": 2.745033514416807,
+        "after": 2.493045545306471,
+        "sign_flip": false,
+        "abs_change": 0.25198796911033616
+      },
+      "fx_g_1": {
+        "before": 0.0355337536522555,
+        "after": 0.04170674220957607,
+        "sign_flip": false,
+        "abs_change": 0.006172988557320569
+      },
+      "gdp_g_1": {
+        "before": 0.42544418510020726,
+        "after": 0.4407861256073955,
+        "sign_flip": false,
+        "abs_change": 0.015341940507188234
+      },
+      "pi_deflator_1": {
+        "before": -0.621774907589107,
+        "after": -0.6117846376273235,
+        "sign_flip": false,
+        "abs_change": 0.009990269961783538
+      },
+      "_sign_flips": 0
+    },
+    "exports": {
+      "const": {
+        "before": 18739.12831339602,
+        "after": 12174.03717491775,
+        "sign_flip": false,
+        "abs_change": 6565.09113847827
+      },
+      "exports_real_1": {
+        "before": 0.44792060787124444,
+        "after": 0.6613883346478019,
+        "sign_flip": false,
+        "abs_change": 0.21346772677655745
+      },
+      "fx_g_1": {
+        "before": -3.6970367306090566,
+        "after": 16.276011187421716,
+        "sign_flip": true,
+        "abs_change": 19.973047918030773
+      },
+      "_sign_flips": 1
+    },
+    "government": {
+      "const": {
+        "before": 38754.721917150426,
+        "after": 39817.51305645787,
+        "sign_flip": false,
+        "abs_change": 1062.7911393074464
+      },
+      "govt_consumption_real_1": {
+        "before": 0.28085914244915444,
+        "after": 0.28285785328326296,
+        "sign_flip": false,
+        "abs_change": 0.001998710834108519
+      },
+      "_sign_flips": 0
+    },
+    "imports": {
+      "const": {
+        "before": -19532.971959905866,
+        "after": -19495.706972369186,
+        "sign_flip": false,
+        "abs_change": 37.264987536680565
+      },
+      "fx_g_1": {
+        "before": 36.78034916633044,
+        "after": 127.38764129003255,
+        "sign_flip": false,
+        "abs_change": 90.60729212370211
+      },
+      "real_gdp_1": {
+        "before": 0.19891459823581242,
+        "after": 0.1982119454265538,
+        "sign_flip": false,
+        "abs_change": 0.0007026528092586304
+      },
+      "_sign_flips": 0
+    },
+    "investment": {
+      "const": {
+        "before": -10651.508179596065,
+        "after": 11708.356935423717,
+        "sign_flip": true,
+        "abs_change": 22359.865115019784
+      },
+      "real_gdp_1": {
+        "before": 0.23724800164245258,
+        "after": 0.1446478507148347,
+        "sign_flip": false,
+        "abs_change": 0.09260015092761786
+      },
+      "real_rate_1": {
+        "before": 61.61858598156323,
+        "after": -279.2147589655791,
+        "sign_flip": true,
+        "abs_change": 340.83334494714234
+      },
+      "_sign_flips": 2
+    },
+    "ipca_bridge": {
+      "const": {
+        "before": 1.514881390176138,
+        "after": 1.3627452669905538,
+        "sign_flip": false,
+        "abs_change": 0.15213612318558423
+      },
+      "pi_deflator": {
+        "before": -0.019345824649122538,
+        "after": 0.0044150879537373025,
+        "sign_flip": true,
+        "abs_change": 0.02376091260285984
+      },
+      "_sign_flips": 1
+    }
+  },
+  "sanity": {
+    "ipca_m": {
+      "min": 0.45286547309573155,
+      "max": 0.4569617857679731,
+      "finite": true,
+      "in_range": true
+    },
+    "ipca_12m": {
+      "min": 3.4462038291911856,
+      "max": 5.584461227662141,
+      "finite": true,
+      "in_range": true
+    },
+    "gdp_qq": {
+      "min": -1.1458656813469612,
+      "max": -0.09026426371180678,
+      "finite": true,
+      "in_range": true
+    },
+    "selic": {
+      "min": 4.5,
+      "max": 4.5,
+      "finite": true,
+      "in_range": true
+    }
+  }
+}

@@ -1,0 +1,254 @@
+version: 1
+
+# Series catalog. `release_lag_days` is measured from the END of the reference
+# period (month/quarter) or from the reference date for daily series. It is a
+# calendar approximation used to build pseudo-vintages; see docs/DATA.md.
+series:
+  ipca_m:
+    description: IPCA monthly variation (% m/m)
+    source: sgs
+    code: 433
+    freq: M
+    unit: percent_mom
+    start: 1994-01-01
+    release_lag_days: 10
+    role: [target, nk]
+
+  ipca_12m:
+    description: IPCA accumulated 12 months (%)
+    source: sgs
+    code: 13522
+    freq: M
+    unit: percent_12m
+    start: 1994-01-01
+    release_lag_days: 10
+    role: [check]
+
+  selic_target:
+    description: Selic target rate (% p.a.)
+    source: sgs
+    code: 432
+    freq: D
+    unit: percent_pa
+    start: 1999-03-01
+    release_lag_days: 0
+    role: [target, nk]
+
+  ibc_br:
+    description: IBC-Br activity index (seasonally adjusted)
+    source: sgs
+    code: 24364
+    freq: M
+    unit: index
+    start: 2003-01-01
+    release_lag_days: 20
+    role: [nk]
+
+  fx_usdbrl:
+    description: BRL/USD exchange rate, monthly average
+    source: sgs
+    code: 3695
+    freq: M
+    unit: brl_per_usd
+    start: 1999-01-01
+    release_lag_days: 1
+    role: [nk]
+
+  gdp_qq:
+    description: GDP q/q growth (%)
+    source: sidra
+    aggregate: 5932
+    variable: 6564
+    classification: "11255[90707]"
+    freq: Q
+    unit: percent_qoq
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [target]
+
+  gdp_level:
+    description: GDP chained volume index (1995 prices, mn BRL)
+    source: sidra
+    aggregate: 6612
+    variable: 9318
+    classification: "11255[90707]"
+    freq: Q
+    unit: brl_mn_1995
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [check]
+
+  focus_ipca_12m:
+    description: Focus median 12-month-ahead IPCA expectation (%)
+    source: focus
+    endpoint: ExpectativasMercadoInflacao12Meses
+    filter: "Indicador eq 'IPCA' and Suavizada eq 'N' and baseCalculo eq 0"
+    freq: D
+    unit: percent_12m
+    release_lag_days: 0
+    role: [nk, benchmark]
+
+  focus_ipca_annual:
+    description: Focus median IPCA expectation by reference year (%)
+    source: focus_annual
+    endpoint: ExpectativasMercadoAnuais
+    filter: "Indicador eq 'IPCA' and baseCalculo eq 0"
+    freq: D
+    unit: percent_annual
+    release_lag_days: 0
+    role: [benchmark]
+
+  focus_gdp_annual:
+    description: Focus median GDP growth expectation by reference year (%)
+    source: focus_annual
+    endpoint: ExpectativasMercadoAnuais
+    filter: "Indicador eq 'PIB Total' and baseCalculo eq 0"
+    freq: D
+    unit: percent_annual
+    release_lag_days: 0
+    role: [benchmark]
+
+  focus_selic_annual:
+    description: Focus median Selic expectation by reference year (% p.a.)
+    source: focus_annual
+    endpoint: ExpectativasMercadoAnuais
+    filter: "Indicador eq 'Selic' and baseCalculo eq 0"
+    freq: D
+    unit: percent_annual
+    release_lag_days: 0
+    role: [benchmark]
+
+  # --- Phase 2: money, credit, fiscal, national accounts -------------------
+  m2:
+    description: M2 broad money stock (R$ thousands)
+    source: sgs
+    code: 27810
+    freq: M
+    unit: brl_thousands
+    start: 2001-08-01
+    release_lag_days: 30
+    role: [monetarist]
+
+  credit_total:
+    description: Total credit stock (R$ millions)
+    source: sgs
+    code: 2064
+    freq: M
+    unit: brl_millions
+    start: 1998-02-01
+    release_lag_days: 30
+    role: [monetarist]
+
+  debt_gdp:
+    description: Gross general government debt (% of GDP)
+    source: sgs
+    code: 13762
+    freq: M
+    unit: percent_gdp
+    start: 2006-12-01
+    release_lag_days: 30
+    role: [fiscal]
+
+  primary_balance_12m:
+    description: Consolidated public sector primary balance, 12m (% of GDP)
+    source: sgs
+    code: 5793
+    freq: M
+    unit: percent_gdp
+    start: 2002-11-01
+    release_lag_days: 30
+    role: [fiscal]
+
+  net_debt_gdp:
+    description: Net public sector debt (% of GDP)
+    source: sgs
+    code: 4513
+    freq: M
+    unit: percent_gdp
+    start: 2001-12-01
+    release_lag_days: 30
+    role: [fiscal]
+
+  gdp_nominal:
+    description: GDP at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[90707]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  consumption_nominal:
+    description: Household consumption at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[93404]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  govt_consumption_nominal:
+    description: Government consumption at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[93405]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  investment_nominal:
+    description: Gross fixed capital formation at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[93406]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  exports_nominal:
+    description: Exports of goods and services at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[93407]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  imports_nominal:
+    description: Imports of goods and services at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[93408]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]
+
+  taxes_nominal:
+    description: Taxes net of subsidies on products at current prices (R$ millions)
+    source: sidra
+    aggregate: 1846
+    variable: 585
+    classification: "11255[90706]"
+    freq: Q
+    unit: brl_millions
+    start: 1996-01-01
+    release_lag_days: 60
+    role: [sfc]

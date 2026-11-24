@@ -1,0 +1,2 @@
+{"type":"step_start","timestamp":1795489819942,"sessionID":"ses_df477a083ffeGMbAUiaJxr0gDf","part":{"id":"prt_20b886d26001Haj4Whrz7Vzcos","sessionID":"ses_df477a083ffeGMbAUiaJxr0gDf","messageID":"msg_20b886b0e001z5S4qh0NrhegBW","type":"step-start"}}
+{"type":"error","timestamp":1795489820053,"sessionID":"ses_df477a083ffeGMbAUiaJxr0gDf","error":{"type":"provider.auth","message":"Invalid credential","status":401,"response":{"body":"{\"error\":{\"type\":\"authentication_error\",\"message\":\"Invalid credential\"}}"}}}

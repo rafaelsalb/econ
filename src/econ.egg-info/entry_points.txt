@@ -1,0 +1,2 @@
+[console_scripts]
+econ = econ.cli:main

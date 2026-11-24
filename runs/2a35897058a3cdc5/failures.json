@@ -1,0 +1,12 @@
+[
+  {
+    "model":"monetarist",
+    "origin":"2010-01-29",
+    "error":"ValueError: bridge: insufficient history"
+  },
+  {
+    "model":"monetarist",
+    "origin":"2010-02-26",
+    "error":"ValueError: bridge: insufficient history"
+  }
+]

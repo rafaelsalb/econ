@@ -1,0 +1,173 @@
+school: monetarist
+model_id: monetarist
+version: 1.0.0
+status: frozen
+frozen_at: "2026-11-24"
+primary_target: ipca_12m
+validation_end: "2019-12-31"
+description: >
+  Monetarist block for Brazil: a money-demand equation, a P-star price gap,
+  and a six-variable Bayesian VAR with money and credit growth. The VAR supplies
+  the monthly inflation and Selic paths; IBC-Br growth is mapped to GDP with the
+  shared satellite bridge. The school's claim is that money and credit growth
+  carry information about inflation beyond the output gap and the policy rate.
+
+equations:
+  money_demand: >
+    (m2 - p)_t = a0 + a1*y_t + a2*i_t + a3*(m2 - p)_{t-1} + e_t,
+    where y = log IBC-Br, i = log(1 + Selic/100), and p is the cumulative
+    IPCA price level. Long-run income and interest elasticities are
+    a1/(1-a3) and a2/(1-a3).
+  pstar: >
+    p*_t = m_t - (a0 + a1*y_t + a2*i_t)/(1-a3);
+    pi_t = b0 + b1*pi_{t-1} + b2*(p - p*)_{t-1} + b3*dfx_{t-1} + e_t.
+  bvar: >
+    Six-variable monthly BVAR in [IPCA, M2 growth, credit growth, IBC-Br growth,
+    Selic, FX growth], p = 2, Minnesota prior with lambda = 0.2.
+  gdp_bridge: >
+    GDP q/q is a satellite bridge on the IBC-Br path from the BVAR. It is not
+    evidence for the monetarist block.
+
+observables:
+  pi: {series: ipca_m, freq: M, transform: none}
+  activity: {series: ibc_br, freq: M, transform: log}
+  policy_rate: {series: selic_target, freq: D, transform: month-end}
+  expectations: {series: focus_ipca_12m, freq: D, transform: none, role: reference}
+  m2: {series: m2, freq: M, transform: log}
+  credit: {series: credit_total, freq: M, transform: log}
+  fx: {series: fx_usdbrl, freq: M, transform: 100*dlog}
+  gdp: {series: gdp_qq, freq: Q, transform: none, role: satellite, shared_with: ibc_bridge}
+
+identification: >
+  Money demand and the P-star inflation equation are estimated by OLS with
+  Newey-West HAC (12 lags). The long-run money-demand elasticities are derived
+  from the estimated AR(1) coefficient. The VAR is a Bayesian reduced form with
+  a Minnesota prior; no structural identification is claimed. The price gap is
+  an observable constructed from the estimated money-demand parameters, not a
+  latent state.
+
+calibration:
+  bvar_p: 2
+  bvar_lambda: 0.2
+  bvar_delta: 0.5
+  estimation_start: "2004-02-01"
+
+estimation:
+  method: OLS with HAC for the money-demand and P-star equations; Bayesian VAR for the forecast block
+  frequency: monthly
+  start: "2004-02"
+  sample: expanding window
+  software: statsmodels + local Minnesota BVAR
+
+forecast_recipe: >
+  At origin t: IPCA, M2, credit, IBC-Br and FX are available through M-1; the
+  Selic target through t. The BVAR is estimated on the common monthly sample
+  and iterated 15 months. The first 13 months supply IPCA and Selic. The
+  IBC-Br growth path is integrated from the last actual level and mapped to
+  GDP with the shared bridge. The 12-month IPCA rate is derived by compounding
+  the monthly path.
+
+refutation_conditions:
+  - A non-positive income elasticity in money demand would refute the transactions motive.
+  - A non-negative interest coefficient would refute the opportunity-cost channel.
+  - A non-positive P-star gap coefficient would refute the price-gap inflation channel.
+  - An unstable BVAR companion matrix would refute the forecast block.
+  - Failure of the core inflation and Focus gates would refute the forecasting claim.
+
+refutation_tests:
+  - id: money_income
+    block: money_demand
+    key: "y"
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Money-demand income coefficient is non-positive."
+  - id: money_interest
+    block: money_demand
+    key: "i"
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Money-demand interest coefficient is non-negative."
+  - id: money_persistence
+    block: money_demand
+    key: m2_real_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Real money persistence is non-positive."
+  - id: pstar_gap
+    block: pstar_inflation
+    key: gap_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "P-star price gap has the wrong sign; the monetarist inflation channel is refuted."
+  - id: pstar_fx
+    block: pstar_inflation
+    key: fx_g_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: medium
+    message: "FX pass-through in the P-star equation is non-positive."
+
+discriminating_predictions:
+  - Money and credit growth carry information about inflation beyond the output gap and the policy rate.
+  - A positive price gap (p > p*) predicts higher inflation; the gap is the monetarist transmission variable.
+  - A credit boom raises inflation with a lag; a credit contraction lowers it.
+  - The P-star gap should be stable around zero in the long run.
+
+known_limitations:
+  - The VAR is reduced-form; no structural money-supply shock is identified.
+  - The money-demand equation uses a generated price index from IPCA and may be unstable.
+  - M2 and credit are available from 2001-12 and 1998-02; the common sample starts in 2004.
+  - GDP is a satellite bridge and is excluded from the school's gate.
+  - No real-time vintages for M2/credit revisions.
+
+revision_policy:
+  max_rounds: 1
+  frozen_before_estimation: true
+  lockbox_visible: false
+  R1: baseline specification described above.
+  forbidden:
+    - adding new variables not declared in this card
+    - changing the estimation sample to improve scores
+    - using the lockbox for any decision
+    - editing the card inside the loop
+
+pass_criteria:
+  blocking_high: [D1, D2, D3, D6, D7]
+  core_target: ipca_12m
+  core_horizons: [6, 12]
+  core_rule: >
+    Theil U <= 1.05 vs random walk and MZ slope p >= 0.05 at h=6 and h=12,
+    and no significant loss to the Focus consensus (DM p >= 0.10 or
+    focus_ratio <= 1.05).
+  auxiliary_rule: >
+    Selic h=12: Theil U <= 1.05 and MZ p >= 0.05; otherwise
+    PASS_WITH_LIMITATIONS after the ladder. GDP is a satellite and is excluded
+    from the school's gate and mean rank.
+  medium_defects: >
+    D4 residual autocorrelation and medium D7 sign issues are recorded as
+    limitations. A failed refutation test is blocking.
+  terminal_states: [PASS, PASS_WITH_LIMITATIONS, REJECTED, UNESTIMABLE, UNRESOLVED]
+
+data_policy: >
+  Curated observations carry reference, release, and vintage dates. Validation
+  targets are purged at 2019-12-31. The lockbox 2020-01..2026-10 is sealed.
+
+provenance:
+  data_source: "BCB SGS"
+  data_hash: "recorded in registry manifest"
+  code_hash: "recorded in registry manifest"
+  spec_hash: "sha256 of this file"

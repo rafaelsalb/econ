@@ -1,0 +1,35 @@
+{
+  "run_id": "bcc484687195dc12",
+  "models": [
+    "focus_consensus",
+    "monetarist",
+    "random_walk"
+  ],
+  "config": {
+    "start": "2019-01-01",
+    "end": "2019-12-31",
+    "embargo_until": "2019-12-31",
+    "models": [
+      "random_walk",
+      "focus_consensus",
+      "monetarist"
+    ],
+    "model_kwargs": {
+      "monetarist": {
+        "variant": "R1"
+      }
+    },
+    "estimation_start": "2000-01-01"
+  },
+  "seed": 7,
+  "data_hash": "14b49d7a27ffc32f5b329420c1b05c08a4b37215bf3b644d6da8e29f982f8ca8",
+  "code_hash": "19e98f22425e658945ca3a532f91a68095ea7f7260bf8b08a4c78bd160efe9f7",
+  "spec_hashes": {
+    "focus_consensus": "",
+    "monetarist": "e3162bcbdf1265f4f78e4325da417b84b52d8336c4005851ffa26645e417413a",
+    "random_walk": ""
+  },
+  "created_at": "2026-11-24T01:03:19",
+  "n_forecasts": 450,
+  "failures": []
+}

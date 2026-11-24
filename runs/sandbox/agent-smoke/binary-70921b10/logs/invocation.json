@@ -1,0 +1,36 @@
+{
+  "invocation_id": "binary-70921b10",
+  "run_id": "agent-smoke",
+  "role": "binary",
+  "timestamp": "2026-11-23T23:51:16",
+  "argv": [
+    "opencode",
+    "--version"
+  ],
+  "image": "econ-agent:latest",
+  "network": "none",
+  "env_keys": [
+    "HOME",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 0,
+  "duration_s": 1.055,
+  "timed_out": false,
+  "stdout_sha256": "5808d70dde4f8c7d255e8ff8ec4ebad7ea669cf1b0d05eb15eca9516d8df366b",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "agent-smoke",
+    "role": "binary",
+    "invocation_id": "binary-70921b10",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-smoke/binary-70921b10",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-smoke/binary-70921b10/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/agent-smoke/binary-70921b10/out"
+  }
+}

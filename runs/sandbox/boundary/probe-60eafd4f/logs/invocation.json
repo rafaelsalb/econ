@@ -1,0 +1,42 @@
+{
+  "invocation_id": "probe-60eafd4f",
+  "run_id": "boundary",
+  "role": "probe",
+  "timestamp": "2026-11-23T23:51:02",
+  "argv": [
+    "python",
+    "-c",
+    "\nimport os, socket, urllib.request\nchecks = {}\ntry:\n    open('/workspace/out/probe.txt','w').write('ok'); checks['out_write'] = True\nexcept Exception as e:\n    checks['out_write'] = False\ntry:\n    open('/workspace/in/probe.txt','w'); checks['in_write'] = True\nexcept Exception:\n    checks['in_write'] = False\nchecks['eval_absent'] = not os.path.exists('/workspace/in/../../eval/scoreboard.csv')\nchecks['lockbox_absent'] = not os.path.exists('/workspace/in/../../../data/curated/observations.parquet')\ntry:\n    urllib.request.urlopen('https://example.com', timeout=5); checks['proxy_block'] = False\nexcept Exception as e:\n    checks['proxy_block'] = True\n    checks['proxy_error'] = type(e).__name__\ntry:\n    socket.create_connection(('1.1.1.1', 443), 2); checks['direct_net_block'] = False\nexcept Exception:\n    checks['direct_net_block'] = True\nprint(checks)\n"
+  ],
+  "image": "econ-agent:latest",
+  "network": "offline",
+  "env_keys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "http_proxy",
+    "https_proxy"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 0,
+  "duration_s": 1.4,
+  "timed_out": false,
+  "stdout_sha256": "591a3283c96625eac90074eb5d5c03b772175faf9976ab5fe394f2a428cff889",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "boundary",
+    "role": "probe",
+    "invocation_id": "probe-60eafd4f",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/boundary/probe-60eafd4f",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/boundary/probe-60eafd4f/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/boundary/probe-60eafd4f/out"
+  }
+}

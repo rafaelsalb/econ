@@ -1,0 +1,43 @@
+{
+  "run_id": "a63e7e79be1a7c54",
+  "models": [
+    "ar",
+    "bvar",
+    "focus_consensus",
+    "ibc_bridge",
+    "new_keynesian",
+    "random_walk",
+    "seasonal_naive"
+  ],
+  "config": {
+    "start": "2010-01-01",
+    "end": "2019-12-31",
+    "embargo_until": "2019-12-31",
+    "models": [
+      "random_walk",
+      "seasonal_naive",
+      "ar",
+      "bvar",
+      "ibc_bridge",
+      "focus_consensus",
+      "new_keynesian"
+    ],
+    "model_kwargs": {},
+    "estimation_start": "2000-01-01"
+  },
+  "seed": 7,
+  "data_hash": "3658e07c54368b2e6a8fb130b344281e71d2cbc495bcfdab303ded45024c1791",
+  "code_hash": "f6907e3c2e15e70d5498f40e62953598075f487355b3847c26fcd766e5fc8da5",
+  "spec_hashes": {
+    "ar": "",
+    "bvar": "",
+    "focus_consensus": "",
+    "ibc_bridge": "",
+    "new_keynesian": "bdaebdd440873f3ad16471fe24f48702db886d74b7e5eebb5db699c41729c581",
+    "random_walk": "",
+    "seasonal_naive": ""
+  },
+  "created_at": "2026-11-24T00:13:05",
+  "n_forecasts": 17670,
+  "failures": []
+}

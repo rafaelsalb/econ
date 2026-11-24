@@ -1,0 +1,229 @@
+school: pk_sfc
+model_id: pk_sfc
+version: 1.0.0
+status: frozen
+frozen_at: "2026-11-24"
+primary_target: ipca_12m
+validation_end: "2019-12-31"
+description: >
+  Post-Keynesian stock-flow-consistent (SFC-lite) block for Brazil. Real
+  expenditure components are estimated behaviorally, GDP closes through the
+  expenditure identity, a markup/deflator block determines inflation, and a
+  government debt identity tracks the fiscal stock. The Selic path is an
+  exogenous scenario assumption. This is a simplified SFC model: it preserves
+  the accounting identity and sectoral budget logic, not a full transaction-flow
+  matrix.
+
+equations:
+  consumption: >
+    C_real_t = c0 + c1*Y_{t-1} + c2*(selic_{t-1}/4 - pi_deflator_{t-1}) + e_t.
+  investment: >
+    I_real_t = i0 + i1*Y_{t-1} + i2*(selic_{t-1}/4 - pi_deflator_{t-1}) + e_t.
+  government: >
+    G_real_t = g0 + g1*G_real_{t-1} + e_t.
+  exports: >
+    X_real_t = x0 + x1*X_real_{t-1} + x2*dfx_{t-1} + e_t.
+  imports: >
+    M_real_t = m0 + m1*Y_{t-1} + m2*dfx_{t-1} + e_t.
+  gdp_identity: >
+    Y_real_t = C_real_t + I_real_t + G_real_t + X_real_t - M_real_t.
+  deflator: >
+    pi_deflator_t = d0 + d1*pi_deflator_{t-1} + d2*dfx_{t-1}
+                    + d3*gdp_g_{t-1} + e_t.
+  ipca_bridge: >
+    pi_ipca_q_t = p0 + p1*pi_deflator_t + e_t. This is a satellite mapping
+    from the GDP deflator to quarterly IPCA; monthly IPCA is interpolated
+    within the quarter.
+  debt: >
+    debt_t = debt_{t-1} + ((selic/4 - g_t)/(1 + g_t))*debt_{t-1}
+             - pb_t/4, where g_t is quarterly nominal growth and pb is the
+     12-month primary balance divided by 4. This is an approximation.
+  selic: >
+    The Selic target is held at its origin value for the forecast horizon.
+    It is a scenario assumption, not a school forecast.
+
+observables:
+  pi: {series: ipca_m, freq: M, transform: none, quarterly: compound}
+  activity: {series: gdp_level, freq: Q, transform: log}
+  policy_rate: {series: selic_target, freq: D, transform: quarter average, role: exogenous}
+  expectations: {series: focus_ipca_12m, freq: D, transform: none, role: reference}
+  nominal_gdp: {series: gdp_nominal, freq: Q}
+  consumption: {series: consumption_nominal, freq: Q}
+  government: {series: govt_consumption_nominal, freq: Q}
+  investment: {series: investment_nominal, freq: Q}
+  exports: {series: exports_nominal, freq: Q}
+  imports: {series: imports_nominal, freq: Q}
+  taxes: {series: taxes_nominal, freq: Q}
+  debt: {series: debt_gdp, freq: M, transform: quarter-end}
+  primary_balance: {series: primary_balance_12m, freq: M, transform: quarter average}
+
+identification: >
+  The behavioral equations are OLS with Newey-West HAC (12 lags). The GDP
+  identity and the debt identity are accounting, not estimated. Real components
+  are nominal national-accounts components deflated by the GDP deflator; this
+  ignores component-specific deflators and is a stated limitation. The model is
+  a demand-led SFC-lite, not a full social-accounting matrix.
+
+calibration:
+  estimation_start: "2006Q4"
+  selic_path: "held at the origin value"
+  debt_identity: "quarterly approximation with pb/4"
+
+estimation:
+  method: OLS with HAC
+  frequency: quarterly
+  start: "2006Q4"
+  sample: expanding window
+  software: statsmodels
+
+forecast_recipe: >
+  At origin t the latest national accounts are used; the model iterates the
+  behavioral components for the current and next four quarters. GDP closes
+  through the identity. The deflator follows the estimated equation and the
+  IPCA bridge maps it to quarterly IPCA; monthly IPCA is the within-quarter
+  equivalent of that rate. The Selic path is held at the origin value. The
+  debt identity is iterated. Quarterly GDP q/q is reported directly; the
+  12-month IPCA rate is derived by compounding the monthly path.
+
+refutation_conditions:
+  - A non-positive marginal propensity to consume or invest would refute the demand-led closure.
+  - A non-negative consumption or investment response to the real rate would refute the interest-rate channel.
+  - A non-positive deflator persistence or FX pass-through would refute the markup/inflation block.
+  - A non-positive IPCA bridge slope would refute the mapping from the deflator to consumer prices.
+  - A GDP identity discrepancy above 5% would refute the accounting closure.
+  - Failure of the core inflation and GDP gates would refute the forecasting claim.
+
+refutation_tests:
+  - id: consumption_income
+    block: consumption
+    key: real_gdp_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Consumption does not respond positively to income."
+  - id: consumption_rate
+    block: consumption
+    key: real_rate_1
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Consumption responds positively to the real rate; the interest-rate channel is refuted."
+  - id: investment_income
+    block: investment
+    key: real_gdp_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D1
+    severity: high
+    message: "Investment does not respond positively to income."
+  - id: investment_rate
+    block: investment
+    key: real_rate_1
+    stat: coef
+    op: lt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Investment responds positively to the real rate."
+  - id: exports_persistence
+    block: exports
+    key: exports_real_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: medium
+    message: "Export persistence is non-positive."
+  - id: imports_income
+    block: imports
+    key: real_gdp_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: medium
+    message: "Imports do not respond positively to income."
+  - id: deflator_persistence
+    block: deflator
+    key: pi_deflator_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "Deflator inflation persistence is non-positive."
+  - id: deflator_fx
+    block: deflator
+    key: fx_g_1
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "FX pass-through into the deflator is non-positive."
+  - id: ipca_bridge
+    block: ipca_bridge
+    key: pi_deflator
+    stat: coef
+    op: gt
+    threshold: 0.0
+    code: D7
+    severity: high
+    message: "The deflator-to-IPCA bridge has the wrong sign."
+
+discriminating_predictions:
+  - Demand components drive output through the expenditure identity; fiscal or external demand shocks move GDP and imports.
+  - A higher real rate lowers consumption and investment, and the effect is visible in the sectoral balances.
+  - A nominal depreciation raises the deflator and, with a lag, consumer inflation.
+  - The government debt path follows the primary balance and the interest-growth differential.
+
+known_limitations:
+  - SFC-lite: no full transaction-flow matrix or sectoral balance sheets.
+  - Nominal components are deflated by the GDP deflator; component-specific deflators are ignored.
+  - The Selic path is exogenous and held constant; it is not a school forecast.
+  - Quarterly IPCA is interpolated to months; the monthly path is not independently identified.
+  - The debt identity uses the 12-month primary balance divided by four.
+  - National accounts are revised and released with a lag; the sample starts in 2006Q4 because of the debt series.
+  - The model is a scenario/accounting tool, not a high-frequency nowcast.
+
+revision_policy:
+  max_rounds: 1
+  frozen_before_estimation: true
+  lockbox_visible: false
+  R1: baseline specification described above.
+  forbidden:
+    - adding new variables not declared in this card
+    - changing the estimation sample to improve scores
+    - using the lockbox for any decision
+    - editing the card inside the loop
+
+pass_criteria:
+  blocking_high: [D1, D2, D3, D6, D7]
+  core_target: ipca_12m
+  core_horizons: [6, 12]
+  core_rule: >
+    Theil U <= 1.05 vs random walk and MZ slope p >= 0.05 at h=6 and h=12,
+    and no significant loss to the Focus consensus (DM p >= 0.10 or
+    focus_ratio <= 1.05).
+  auxiliary_rule: >
+    GDP q/q h=1 and h=4: Theil U <= 1.05 and MZ p >= 0.05. Selic is an
+    exogenous scenario and is excluded from the school's gate.
+  medium_defects: >
+    D4 residual autocorrelation and medium D7 issues are limitations. A failed
+    refutation test is blocking.
+  terminal_states: [PASS, PASS_WITH_LIMITATIONS, REJECTED, UNESTIMABLE, UNRESOLVED]
+
+data_policy: >
+  Curated observations carry reference, release, and vintage dates. Validation
+  targets are purged at 2019-12-31. The lockbox 2020-01..2026-10 is sealed.
+
+provenance:
+  data_source: "BCB SGS, IBGE SIDRA"
+  data_hash: "recorded in registry manifest"
+  code_hash: "recorded in registry manifest"
+  spec_hash: "sha256 of this file"

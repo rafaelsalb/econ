@@ -1,0 +1,51 @@
+{
+  "invocation_id": "critic_fidelity-1bf9b8f5",
+  "run_id": "key-precedence",
+  "role": "critic_fidelity",
+  "timestamp": "2026-11-24T00:09:29",
+  "argv": [
+    "opencode",
+    "run",
+    "--agent",
+    "econ-critic_fidelity",
+    "--model",
+    "opencode-go/deepseek-v4.1-flash#max",
+    "--format",
+    "json",
+    "Read /workspace/in/packet.md and the files it names. Write the required JSON artifact to /workspace/out/result.json. Do not access anything outside /workspace."
+  ],
+  "image": "econ-agent:latest",
+  "network": "offline",
+  "env_keys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "OPENCODE_API_KEY",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "http_proxy",
+    "https_proxy"
+  ],
+  "limits": {
+    "cpus": 2,
+    "memory": "4g",
+    "pids": 256
+  },
+  "exit_code": 1,
+  "duration_s": 7.488,
+  "timed_out": false,
+  "stdout_sha256": "1f9728d8d2c621c18655c45ac9f400af646bea2e6ac486aa666107dad86a40b1",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "workspace": {
+    "run_id": "key-precedence",
+    "role": "critic_fidelity",
+    "invocation_id": "critic_fidelity-1bf9b8f5",
+    "root": "/home/rafael-albuquerque/repos/econ/runs/sandbox/key-precedence/critic_fidelity-1bf9b8f5",
+    "inbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/key-precedence/critic_fidelity-1bf9b8f5/in",
+    "outbox": "/home/rafael-albuquerque/repos/econ/runs/sandbox/key-precedence/critic_fidelity-1bf9b8f5/out"
+  },
+  "agent_id": "econ-critic_fidelity",
+  "model": "opencode-go/deepseek-v4.1-flash#max"
+}

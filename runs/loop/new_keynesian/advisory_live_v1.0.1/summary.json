@@ -1,0 +1,18 @@
+[
+  {
+    "role": "critic_fidelity",
+    "status": "text_only",
+    "exit_code": 0,
+    "audit": "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_fidelity-0d5776d7/logs/invocation.json",
+    "text_path": "runs/loop/new_keynesian/round-1/advisory/critic_fidelity.md",
+    "extracted_json": "runs/loop/new_keynesian/advisory_live_v1.0.1/critic_fidelity.json",
+    "n_defects": 9
+  },
+  {
+    "role": "critic_adequacy",
+    "status": "text_only",
+    "exit_code": 0,
+    "audit": "/home/rafael-albuquerque/repos/econ/runs/sandbox/ba353b6662411f29-r1/critic_adequacy-1d63166d/logs/invocation.json",
+    "text_path": "runs/loop/new_keynesian/round-1/advisory/critic_adequacy.md"
+  }
+]
