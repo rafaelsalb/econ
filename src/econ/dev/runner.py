@@ -97,6 +97,7 @@ class OpencodeRunner:
         *,
         executable: str = "opencode",
         extra_env: dict[str, str] | None = None,
+        standalone: bool | None = None,
     ):
         self.repo = repo
         self.specs = specs or {
@@ -104,6 +105,11 @@ class OpencodeRunner:
         }
         self.executable = executable
         self.extra_env = extra_env or {}
+        if standalone is None:
+            standalone = bool(
+                os.environ.get("CI") or os.environ.get("ECON_DEV_STANDALONE")
+            )
+        self.standalone = standalone
 
     def command(
         self, role: str, prompt: str, *, model_override: str | None = None
@@ -112,7 +118,7 @@ class OpencodeRunner:
         if spec is None:
             raise KeyError(f"unknown dev agent role: {role}")
         model = model_override or spec.selector
-        return [
+        argv = [
             self.executable,
             "run",
             "--agent",
@@ -123,8 +129,11 @@ class OpencodeRunner:
             "json",
             "--archived",
             "--auto",
-            prompt,
         ]
+        if self.standalone:
+            argv.append("--standalone")
+        argv.append(prompt)
+        return argv
 
     def run(
         self,

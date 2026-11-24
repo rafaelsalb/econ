@@ -183,7 +183,9 @@ the data and code hashes, failures and row counts. The curated parquet hash is
 in `data/curated/manifest.json`. Re-running the same command on the same data
 and code reproduces the id.
 
-Tests: **70 passed**. `econ agents check` and `econ check` pass.
+Tests: **104 passed**. `make gate`, `econ agents check`, `econ dev agents check`,
+and `econ check` pass. All three development canaries pass; the deterministic
+fake pipeline merges CANARY-001/002 in one round and CANARY-003 in two.
 
 ## Next
 

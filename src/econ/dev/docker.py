@@ -141,6 +141,7 @@ class DockerRunner:
             self.image,
             "opencode",
             "run",
+            "--standalone",
             "--agent",
             spec.agent_id,
             "--model",

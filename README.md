@@ -182,7 +182,8 @@ econ sandbox run --role critic_fidelity --run-id review \
 | `econ ensemble` | Equal/performance ensembles, weights, disagreement, fan chart |
 | `econ lockbox open/status` | One-time lockbox evaluation; refuses a second open |
 | `econ final-report` | Cross-phase report from the registry and evaluation files |
-| `econ agents render/check/list/validate` | Manage the sandboxed agent roster |
+| `econ agents render/check/list/validate` | Manage the sandboxed research agent roster |
+| `econ dev ...` | Development tasks, scheduler, canaries, dashboard, release |
 | `econ sandbox build/setup/smoke/run` | Build and run the sandbox |
 
 ## What "state of the art" means here
