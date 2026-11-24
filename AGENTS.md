@@ -45,8 +45,13 @@ The development controller puts the worktree `src/` on `PYTHONPATH` and the main
 - Protected paths (full list in `config/dev_policy.yaml`): `specs/**`, `data/**`,
   `registry/**`, `eval/**`, `sandbox/**`, `reports/final_report.md`,
   `reports/lockbox_report.md`, `config/dev_policy.yaml`, `config/dev_agents.yaml`,
-  and the gate modules `src/econ/{evaluate,critics,diagnostics,loop,lockbox,vintage,checks}.py`.
+  the gate modules `src/econ/{evaluate,critics,diagnostics,loop,lockbox,vintage,checks}.py`,
+  and the merge authority: `src/econ/dev/**`, `.github/workflows/**`,
+  `tests/dev_support.py`, `tasks/templates/task.yaml`, `dev/evals/canary/**`.
   Touching one is risk 3 and requires human sign-off; it is never auto-merged.
+  The controller, the CI that independently verifies auto-merges, and the
+  canary suite are the referee: they are protected so the system cannot
+  silently rewrite the rules that judge it.
 
 ## Data and tracked artifacts
 

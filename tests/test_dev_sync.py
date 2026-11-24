@@ -111,7 +111,7 @@ def test_sync_push_comments_and_closes_done_issue(tmp_path):
             "created": "2026-11-24",
             "goal": "done",
             "acceptance": ["python -m pytest -q"],
-            "scope": {"allow": ["tests/**"]},
+            "scope": {"allow": ["src/econ/feature.py"]},
             "source": {"kind": "github", "number": 7, "author": "alice"},
         }
     )

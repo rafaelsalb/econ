@@ -25,6 +25,15 @@ protected:
   - "src/econ/vintage.py"
   - "src/econ/checks.py"
   - "sandbox/**"
+  # The merge authority and its calibration suite. The controller, the CI that
+  # independently verifies auto-merges, the shared gate-test harness, the
+  # contract template, and the canary suite decide whether work merges, so
+  # changing them is risk 3 exactly like the science gates.
+  - "src/econ/dev/**"
+  - ".github/workflows/**"
+  - "tests/dev_support.py"
+  - "tasks/templates/task.yaml"
+  - "dev/evals/canary/**"
 
 auto_merge:
   # Risk 0-2 can merge automatically when every gate passes.

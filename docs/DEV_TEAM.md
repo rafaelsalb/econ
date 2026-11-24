@@ -88,7 +88,11 @@ metacharacters are rejected, so an imported issue cannot smuggle a second
 command. `scope.allow` must name explicit paths; `**` is rejected. A task that
 needs a protected path is risk 3.
 
-Risk tiers: 0 docs, 1 tests/refactor, 2 behavior, 3 protected/science.
+Risk tiers: 0 docs, 1 tests/refactor, 2 behavior, 3 protected/science. The
+protected set includes the referee itself — `src/econ/dev/**`,
+`.github/workflows/**`, `tests/dev_support.py`, `tasks/templates/task.yaml`,
+`dev/evals/canary/**` — so the pipeline cannot silently rewrite the controller,
+the CI that verifies auto-merges, or the canaries that calibrate it.
 
 ## State machine
 
@@ -114,7 +118,7 @@ READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY 
 |---|---|
 | `patch` / `patch_apply` | non-empty and applies to a clean base |
 | `scope` | every changed file is explicitly allowed |
-| `protected` | no scientific-contract path is touched |
+| `protected` | no protected path is touched: science contract or merge authority |
 | `dependencies` | dependency changes need human sign-off |
 | `secrets` | no key-like strings in the diff |
 | `size` | task and policy limits |

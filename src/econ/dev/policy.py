@@ -95,6 +95,16 @@ DEFAULT_PROTECTED: tuple[str, ...] = (
     "src/econ/vintage.py",
     "src/econ/checks.py",
     "sandbox/**",
+    # The merge authority and its calibration suite: the controller itself, the
+    # CI that independently verifies auto-merges, the shared gate-test harness,
+    # the task-contract template, and the canaries that calibrate the pipeline.
+    # Keep this tuple in sync with the protected list in config/dev_policy.yaml;
+    # tests/test_dev_policy.py fails on drift.
+    "src/econ/dev/**",
+    ".github/workflows/**",
+    "tests/dev_support.py",
+    "tasks/templates/task.yaml",
+    "dev/evals/canary/**",
 )
 
 

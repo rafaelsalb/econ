@@ -160,7 +160,12 @@ Evidence:
 
 The pipeline enforces red-green tests, scope, secrets, dependency sign-off,
 lockbox hashes, registry append-only, and a risk-tiered merge policy. Risk 3
-changes (`specs/`, data, gates, lockbox, sandbox) are always escalated.
+changes are always escalated. The protected set covers the science contract
+(`specs/`, data, gates, lockbox, sandbox) and the referee itself:
+`src/econ/dev/**`, `.github/workflows/**`, `tests/dev_support.py`,
+`tasks/templates/task.yaml`, `dev/evals/canary/**` — the controller, the CI
+that independently verifies auto-merges, and the canary suite cannot be
+changed by the pipeline they judge (`tests/test_dev_policy.py`).
 
 The human front door is the interactive `dev-pm` agent plus `/dev/propose`;
 it writes a validated contract to `tasks/proposed/`. `econ dev promote` is the
