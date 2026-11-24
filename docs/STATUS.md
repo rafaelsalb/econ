@@ -141,6 +141,27 @@ principle) are documented as v1.1 follow-ups.
 Credentialing: `OPENCODE_API_KEY` or `--api-key-file` takes precedence over the
 stale stored account. The key is never copied into the workspace, image or audit.
 
+## Development automation — phases 0–4 complete
+
+The development team is a deterministic controller in `src/econ/dev/` with a
+separate `dev-*` agent roster, task contracts, and a policy boundary. The
+research agents remain advisory and sandboxed; the research sandbox mounts only
+`econ-*.md`.
+
+Evidence:
+
+| Phase | Deliverable | Evidence |
+|---|---|---|
+| 0 | Baseline, CI, protected paths, gate | `make gate` passes; `.github/workflows/ci.yml`; `.github/CODEOWNERS` |
+| 1 | Dev roster, prompts, commands, task schema, canaries | `config/dev_agents.yaml`; 3/3 canaries pass; `econ dev validate --all` |
+| 2 | Worktree pipeline, blind review, verifier, gates, shadow mode | fake end-to-end merge; `runs/dev/` artifacts; 104 tests |
+| 3 | Scheduler, budgets, pause/lock, GitHub sync, dashboard, maintenance, release | `econ dev daemon --once`; `econ dev sync --pull`; dashboard files |
+| 4 | Parallel execution, Docker executor, scheduled workflows, release bot | two-task parallel test; `econ-agent:latest` rebuilt with git; 4 workflows; `v0.2.0` release |
+
+The pipeline enforces red-green tests, scope, secrets, dependency sign-off,
+lockbox hashes, registry append-only, and a risk-tiered merge policy. Risk 3
+changes (`specs/`, data, gates, lockbox, sandbox) are always escalated.
+
 ## Deviations from the plan
 
 1. **The first New Keynesian PASS was withdrawn** after the external review.

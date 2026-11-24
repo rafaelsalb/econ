@@ -17,6 +17,7 @@ critic loop, and the agent sandbox sit on top.
 | Sandbox | Configurable agent roster, Docker/bwrap, egress allowlist, audit | **Implemented; live critics ran** |
 | 2 | Monetarist, Fiscal/FTPL, Post-Keynesian SFC models in parallel | **Complete — all `REJECTED` with reasons** |
 | 3 | Ensemble, fan of schools, disagreement, one-time lockbox, final report | **Complete** |
+| Dev team | Roster, deterministic pipeline, scheduler, canaries, Docker executor, workflows | **Complete — phases 0–4** |
 
 All four school models were **rejected** on pre-registered validation gates. The
 New Keynesian fired gap-significance, FX-sign and Focus value-added refutations;

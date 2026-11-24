@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from .artifacts import write_json
-from .models import Task
+from .models import Task, validate_task
 from .policy import DevPolicy
 from .tasks import TaskStore
 
@@ -145,6 +145,9 @@ def sync_pull(
             continue
         try:
             task = task_from_issue(issue, policy)
+            problems = validate_task(task, policy)
+            if problems:
+                raise GitHubSyncError("; ".join(problems))
         except Exception as exc:  # noqa: BLE001
             skipped.append({"number": number, "reason": str(exc)})
             continue

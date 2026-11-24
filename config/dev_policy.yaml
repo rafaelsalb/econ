@@ -73,8 +73,8 @@ gates:
 
 github:
   label: "dev:ready"
-  auto_promote: false
-  trusted_authors: []
+  auto_promote: true
+  trusted_authors: ["rafaelsalb"]
   comment: true
 
 executor:
