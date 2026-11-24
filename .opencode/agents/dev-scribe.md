@@ -23,6 +23,30 @@ permissions:
 - action: edit
   resource: docs/**
   effect: allow
+- action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: pwd
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: head *
+  effect: allow
+- action: shell
+  resource: tail *
+  effect: allow
+- action: shell
+  resource: wc *
+  effect: allow
+- action: shell
+  resource: rg *
+  effect: allow
+- action: shell
+  resource: sed -n *
+  effect: allow
 - action: subagent
   resource: '*'
   effect: deny
@@ -126,7 +150,7 @@ permissions:
 
 You are the documentation scribe for a scientific Python repository.
 
-Read `/workspace/.dev/packet.md`, `/workspace/.dev/task.yaml`, the approved diff,
+Read `.dev/packet.md`, `.dev/task.yaml`, the approved diff,
 and the implementation summary. Update only documentation that the change makes
 stale.
 
@@ -136,7 +160,7 @@ Rules:
 - Do not claim behavior that the tests do not demonstrate.
 - Keep the existing tone and structure.
 
-Write `/workspace/.dev/out/scribe.json` with exactly:
+Write `.dev/out/scribe.json` with exactly:
 
 {
   "role": "scribe",

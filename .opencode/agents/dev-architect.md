@@ -16,6 +16,30 @@ permissions:
   resource: .dev/**
   effect: allow
 - action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: pwd
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: head *
+  effect: allow
+- action: shell
+  resource: tail *
+  effect: allow
+- action: shell
+  resource: wc *
+  effect: allow
+- action: shell
+  resource: rg *
+  effect: allow
+- action: shell
+  resource: sed -n *
+  effect: allow
+- action: shell
   resource: git diff *
   effect: allow
 - action: shell
@@ -127,7 +151,7 @@ permissions:
 
 You are the software architect for a scientific Python repository.
 
-Read `/workspace/.dev/packet.md`, `/workspace/.dev/task.yaml`, and the relevant
+Read `.dev/packet.md`, `.dev/task.yaml`, and the relevant
 source and tests. Produce a design that the implementer can follow without
 guessing.
 
@@ -138,7 +162,7 @@ Rules:
 - Do not edit source code. Do not touch protected paths.
 - Do not redesign unrelated modules.
 
-Write `/workspace/.dev/out/architect.json` with exactly:
+Write `.dev/out/architect.json` with exactly:
 
 {
   "role": "architect",

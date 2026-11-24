@@ -78,8 +78,6 @@ def run_maintenance(
                 "dev maintenance gate failed",
                 "--body",
                 body,
-                "--label",
-                "dev:maintenance",
             ],
             cwd=repo,
             capture_output=True,

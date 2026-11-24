@@ -31,7 +31,8 @@ class AgentResult:
     def json_output(self) -> dict | None:
         from .artifacts import extract_json
 
-        return extract_json(self.text) or extract_json(self.stdout)
+        # Tool events are JSON too. Only the assistant text is a role artifact.
+        return extract_json(self.text)
 
 
 class AgentRunner(Protocol):
@@ -100,15 +101,21 @@ class OpencodeRunner:
         standalone: bool | None = None,
     ):
         self.repo = repo
-        self.specs = specs or {
-            spec.name: spec for spec in agent_config.dev_agents(root=repo)
-        }
+        if specs is None:
+            specs = {
+                spec.name: spec for spec in agent_config.dev_agents(root=repo)
+            }
+        elif not isinstance(specs, dict):
+            specs = {spec.name: spec for spec in specs}
+        self.specs = specs
         self.executable = executable
         self.extra_env = extra_env or {}
         if standalone is None:
-            standalone = bool(
-                os.environ.get("CI") or os.environ.get("ECON_DEV_STANDALONE")
-            )
+            # Each task runs in a linked worktree. A shared background server
+            # can resolve the session back to the main checkout, which would
+            # let agents edit `main` instead of the worktree. A private server
+            # per call keeps the project root pinned to the worktree.
+            standalone = os.environ.get("ECON_DEV_SHARED_SERVER") != "1"
         self.standalone = standalone
 
     def command(

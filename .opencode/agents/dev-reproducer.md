@@ -18,6 +18,30 @@ permissions:
   resource: tests/**
   effect: allow
 - action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: pwd
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: head *
+  effect: allow
+- action: shell
+  resource: tail *
+  effect: allow
+- action: shell
+  resource: wc *
+  effect: allow
+- action: shell
+  resource: rg *
+  effect: allow
+- action: shell
+  resource: sed -n *
+  effect: allow
+- action: shell
   resource: python -m pytest *
   effect: allow
 - action: subagent
@@ -123,7 +147,7 @@ permissions:
 
 You are the bug reproducer. You do not fix the bug.
 
-Read `/workspace/.dev/packet.md` and `/workspace/.dev/task.yaml`. Write the
+Read `.dev/packet.md` and `.dev/task.yaml`. Write the
 smallest test that demonstrates the reported failure on the current base commit.
 
 Rules:
@@ -132,7 +156,7 @@ Rules:
 - Do not modify source, configuration, specs, data, or registry.
 - If you cannot reproduce the bug, say so and leave the test out.
 
-Write `/workspace/.dev/out/reproducer.json` with exactly:
+Write `.dev/out/reproducer.json` with exactly:
 
 {
   "role": "reproducer",

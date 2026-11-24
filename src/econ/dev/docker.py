@@ -53,9 +53,13 @@ class DockerRunner:
         self.image = image or policy.executor.docker_image
         self.network = network or policy.executor.network
         self.executable = executable
-        self.specs = specs or {
-            spec.name: spec for spec in agent_config.dev_agents(root=self.repo)
-        }
+        if specs is None:
+            specs = {
+                spec.name: spec for spec in agent_config.dev_agents(root=self.repo)
+            }
+        elif not isinstance(specs, dict):
+            specs = {spec.name: spec for spec in specs}
+        self.specs = specs
         self.opencode_bin = Path.home() / ".opencode" / "bin" / "opencode"
         self.auth_file = Path.home() / ".local" / "share" / "opencode" / "auth.json"
 
@@ -108,14 +112,17 @@ class DockerRunner:
             f"{worktree}:/workspace:rw",
         ]
         home = worktree / ".dev" / "home"
-        home.mkdir(parents=True, exist_ok=True)
+        for relative in (
+            ".",
+            ".local/share/opencode",
+            ".config/opencode",
+            ".cache",
+        ):
+            (home / relative).mkdir(parents=True, exist_ok=True)
         cmd += ["-v", f"{home}:/home/econ:rw"]
-        agents_dir = self.repo / ".opencode" / "agents"
-        if agents_dir.exists():
-            cmd += ["-v", f"{agents_dir}:/workspace/.opencode/agents:ro"]
-        config = self.repo / "opencode.jsonc"
-        if config.exists():
-            cmd += ["-v", f"{config}:/workspace/opencode.jsonc:ro"]
+        # The worktree already contains the committed `opencode.jsonc` and
+        # `.opencode/agents` for its base commit. Mounting the main checkout's
+        # copies would mask the task's own files and can create untracked files.
         if self.opencode_bin.exists():
             cmd += ["-v", f"{self.opencode_bin}:/usr/local/bin/opencode:ro"]
         if self.auth_file.exists() and "OPENCODE_API_KEY" not in os.environ:

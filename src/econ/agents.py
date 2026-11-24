@@ -134,12 +134,18 @@ def dev_agents(cfg: dict | None = None, *, root: Path | None = None) -> list[Age
 def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
     defaults = defaults or {}
     perms: list[dict] = [{"action": "*", "resource": "*", "effect": "deny"}]
-    p = {**(defaults.get("permissions", {})), **raw.get("permissions", {})}
-    for path in p.get("read", []):
+    base_permissions = defaults.get("permissions", {})
+    own_permissions = raw.get("permissions", {})
+    p = {
+        key: list(dict.fromkeys([*base_permissions.get(key, []), *own_permissions.get(key, [])]))
+        for key in {"read", "edit", "shell", "subagents"}
+    }
+    p["deny"] = [*base_permissions.get("deny", []), *own_permissions.get("deny", [])]
+    for path in p["read"]:
         perms.append({"action": "read", "resource": path, "effect": "allow"})
-    for path in p.get("edit", []):
+    for path in p["edit"]:
         perms.append({"action": "edit", "resource": path, "effect": "allow"})
-    for cmd in p.get("shell", []):
+    for cmd in p["shell"]:
         perms.append({"action": "shell", "resource": cmd, "effect": "allow"})
 
     subagents = p.get("subagents", [])

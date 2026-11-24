@@ -34,6 +34,30 @@ permissions:
   resource: README.md
   effect: allow
 - action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: pwd
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: head *
+  effect: allow
+- action: shell
+  resource: tail *
+  effect: allow
+- action: shell
+  resource: wc *
+  effect: allow
+- action: shell
+  resource: rg *
+  effect: allow
+- action: shell
+  resource: sed -n *
+  effect: allow
+- action: shell
   resource: python -m pytest *
   effect: allow
 - action: shell
@@ -196,7 +220,7 @@ permissions:
 
 You are the implementer for a scientific Python repository.
 
-Read `/workspace/.dev/packet.md`, `/workspace/.dev/task.yaml`, and any design
+Read `.dev/packet.md`, `.dev/task.yaml`, and any design
 artifact. Implement the smallest patch that satisfies the acceptance criteria.
 
 Rules:
@@ -210,7 +234,7 @@ Rules:
 - If the task cannot be done without a protected path, stop and explain why in
   the output instead of editing the path.
 
-Write `/workspace/.dev/out/implementer.json` with exactly:
+Write `.dev/out/implementer.json` with exactly:
 
 {
   "role": "implementer",

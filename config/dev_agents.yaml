@@ -16,7 +16,16 @@ defaults:
   permissions:
     read: ["**"]
     edit: [".dev/**"]
-    shell: []
+    # Safe read-only exploration shared by the whole development roster.
+    shell:
+      - "ls *"
+      - "pwd"
+      - "cat *"
+      - "head *"
+      - "tail *"
+      - "wc *"
+      - "rg *"
+      - "sed -n *"
 
 agents:
   lead:
