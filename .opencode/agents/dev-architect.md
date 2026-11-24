@@ -2,7 +2,7 @@
 description: Design and impact analysis for risk 2 and 3 tasks; read-only except for
   the design artifact.
 mode: subagent
-model: opencode-go/qwen3.8-max
+model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
 steps: 20
 permissions:

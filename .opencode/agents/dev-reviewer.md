@@ -1,7 +1,7 @@
 ---
 description: Blind code review of the commit diff and test evidence. Cannot edit code.
 mode: subagent
-model: opencode-go/qwen3.8-max
+model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
 steps: 20
 permissions:

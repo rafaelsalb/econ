@@ -26,10 +26,10 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 | `dev-pm` | primary | Interview the human, draft a proposed contract, validate it, hand off; never edits code or merges |
 | `dev-lead` | primary | Plan, set risk, dispatch for risk ≥ 2; never edits code |
 | `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
-| `dev-implementer` | subagent | Smallest patch plus a red-green test, on the strong tier (`qwen3.8-max`) |
-| `dev-reviewer` | subagent | Blind diff review on `qwen3.8-max`, risk ≥ 2 only |
+| `dev-implementer` | subagent | Smallest patch plus a red-green test, on `gpt-6-luna#xhigh` |
+| `dev-reviewer` | subagent | Blind diff review on `deepseek-v4.1-flash#max`, risk ≥ 2 only |
 | `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `gpt-6-luna` |
-| `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance, on the strong tier (`qwen3.8-max`) |
+| `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance, on `deepseek-v4.1-flash#max` |
 | `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism; risk ≥ 2 only |
 | `dev-scribe` | subagent | Docs only, after approval |
 | `dev-triage` | subagent | Turns a GitHub issue into a task contract |
@@ -44,6 +44,27 @@ The canary suite grows from real failures: a failed run or a budget-exhausted
 escalation writes a *proposed* canary under `dev/evals/canary/proposed/`;
 a human curates the demo fixture and promotes it with `econ dev canary
 --promote`. Nothing runs from `proposed/` until then.
+
+## Model configuration
+
+Models and reasoning effort live only in `config/dev_agents.yaml` (per-agent
+`model` and `variant`; the `defaults` block is the fallback). To change one:
+
+1. Edit `model`/`variant` for the role.
+2. Run `econ dev agents render` then `econ dev agents check`.
+3. `econ dev agents list` prints the resolved selector for every role.
+
+`econ dev agents check` also enforces the two cross-file relationships:
+`auto_merge.second_reviewer_model` in `config/dev_policy.yaml` must match
+`reviewer_alt`, and `reviewer_alt` must be a different model family from
+`reviewer`. The test suite asserts those relationships, not specific model
+IDs, so a model swap is a configuration edit, not a code change.
+
+Current pins: implementer `gpt-6-luna#xhigh` (the cheapest strong family —
+quality here is what the budget buys), verifier `deepseek-v4.1-flash#max`
+(different family from the implementer, so a blind check is not a shared
+blind spot), everything else `deepseek-v4.1-flash#max` except triage and
+scribe on `glm-5.3-flash`.
 
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents

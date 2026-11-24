@@ -2,7 +2,7 @@
 description: Guards the scientific contract, protected paths, lockbox, registry append-only
   rule, and determinism.
 mode: subagent
-model: opencode-go/kimi-k3
+model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
 steps: 20
 permissions:

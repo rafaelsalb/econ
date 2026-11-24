@@ -2,7 +2,7 @@
 description: Writes the smallest code and test patch that satisfies the acceptance
   criteria.
 mode: subagent
-model: opencode-go/qwen3.8-max
+model: opencode-go/gpt-6-luna#xhigh
 hidden: false
 steps: 40
 permissions:

@@ -63,8 +63,8 @@ agents:
     description: Product manager; interviews the human, drafts and validates a proposed task contract, then hands off to the deterministic controller. Never edits code or merges.
     prompt: config/prompts/dev/pm.md
     mode: primary
-    model: opencode-go/qwen3.8-max
-    variant: null
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
     steps: 30
     permissions:
       read: ["**"]
@@ -84,8 +84,8 @@ agents:
   architect:
     description: Design and impact analysis for risk 2 and 3 tasks; read-only except for the design artifact.
     prompt: config/prompts/dev/architect.md
-    model: opencode-go/qwen3.8-max
-    variant: null
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
     steps: 20
     permissions:
       read: ["**"]
@@ -98,9 +98,10 @@ agents:
   implementer:
     description: Writes the smallest code and test patch that satisfies the acceptance criteria.
     prompt: config/prompts/dev/implementer.md
-    # The implementer is where the work happens; it runs on the strong tier.
-    model: opencode-go/qwen3.8-max
-    variant: null
+    # Implementer quality is what the budget buys; gpt-6-luna is the cheapest
+    # strong family. Bump the variant before changing the family.
+    model: opencode-go/gpt-6-luna
+    variant: xhigh
     steps: 40
     permissions:
       read: ["**"]
@@ -141,8 +142,8 @@ agents:
   reviewer:
     description: Blind code review of the commit diff and test evidence. Cannot edit code.
     prompt: config/prompts/dev/reviewer.md
-    model: opencode-go/qwen3.8-max
-    variant: null
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
     steps: 20
     permissions:
       read: ["**"]
@@ -171,9 +172,11 @@ agents:
   verifier:
     description: Independent acceptance and regression verification on the patch, not the agent worktree.
     prompt: config/prompts/dev/verifier.md
-    # The verifier is the real second opinion for risk 0/1; strong tier.
-    model: opencode-go/qwen3.8-max
-    variant: null
+    # The verifier is the real second opinion for risk 0/1: careful and
+    # skeptical, on a different family from the implementer. The mechanical
+    # gates carry the actual verification authority.
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
     steps: 24
     permissions:
       read: ["**"]
@@ -190,8 +193,8 @@ agents:
   science_guard:
     description: Guards the scientific contract, protected paths, lockbox, registry append-only rule, and determinism.
     prompt: config/prompts/dev/science_guard.md
-    model: opencode-go/kimi-k3
-    variant: null
+    model: opencode-go/deepseek-v4.1-flash
+    variant: max
     steps: 20
     permissions:
       read: ["**"]

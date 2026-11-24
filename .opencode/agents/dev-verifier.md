@@ -2,7 +2,7 @@
 description: Independent acceptance and regression verification on the patch, not
   the agent worktree.
 mode: subagent
-model: opencode-go/qwen3.8-max
+model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
 steps: 24
 permissions:

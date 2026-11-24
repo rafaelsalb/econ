@@ -86,17 +86,40 @@ def test_dev_variants_resolve_or_catalog_is_missing():
     assert not problems or all("catalog cache unavailable" in p for p in problems)
 
 
-def test_reviewer_models_diverge_and_spend_where_the_work_is():
+def test_reviewer_models_diverge_and_match_policy():
     specs = {spec.name: spec for spec in dev_agents(load_dev_config())}
-    # The second reviewer is a genuinely different model family...
-    assert specs["reviewer_alt"].model == "opencode-go/gpt-6-luna"
-    assert specs["reviewer_alt"].model != specs["reviewer"].model
-    # ...and the policy pin agrees with the roster.
+    # Which model each role uses is configuration, not code: change
+    # config/dev_agents.yaml, re-render, and this test keeps enforcing only
+    # the relationships that are design rules.
+    assert specs["reviewer"].model != specs["reviewer_alt"].model
     policy = load_policy(Path(__file__).resolve().parent.parent)
     assert policy.auto_merge.second_reviewer_model == specs["reviewer_alt"].model
-    # The roles where the work actually happens run on the strong tier.
-    for role in ("implementer", "verifier"):
-        assert specs[role].model == "opencode-go/qwen3.8-max"
+
+
+def test_implementer_and_verifier_are_different_families():
+    # The verifier is the real second opinion for risk 0/1; it must not share
+    # the implementer's model family or it can inherit the same blind spots.
+    specs = {spec.name: spec for spec in dev_agents(load_dev_config())}
+    assert specs["implementer"].model != specs["verifier"].model
+
+
+def test_reviewer_model_problems_flags_pin_drift():
+    from econ.dev.policy import DevPolicy, reviewer_model_problems
+
+    cfg = {
+        "defaults": {"model": "opencode-go/deepseek-v4.1-flash"},
+        "agents": {
+            "reviewer": {"model": "opencode-go/deepseek-v4.1-flash"},
+            "reviewer_alt": {"model": "opencode-go/gpt-6-luna"},
+        },
+    }
+    policy = DevPolicy()
+    policy.auto_merge.second_reviewer_model = "opencode-go/qwen3.8-max"
+    assert any("second_reviewer_model" in problem for problem in reviewer_model_problems(cfg, policy))
+    policy.auto_merge.second_reviewer_model = "opencode-go/gpt-6-luna"
+    assert reviewer_model_problems(cfg, policy) == []
+    cfg["agents"]["reviewer"]["model"] = "opencode-go/gpt-6-luna"
+    assert any("different" in problem for problem in reviewer_model_problems(cfg, policy))
 
 
 def test_opencode_argv_is_archived_and_auto():

@@ -157,6 +157,40 @@ def load_policy(root: Path) -> DevPolicy:
     return DevPolicy.model_validate(raw)
 
 
+def reviewer_model_problems(cfg: dict, policy: DevPolicy) -> list[str]:
+    """Cross-file checks for the reviewer pin.
+
+    Model choice itself is configuration (config/dev_agents.yaml); these are
+    the two relationships that must hold or the risk-2 review is not what the
+    policy claims: the policy pin must match reviewer_alt, and reviewer_alt
+    must be a different model family from reviewer.
+    """
+    defaults = cfg.get("defaults") or {}
+    agents = cfg.get("agents") or {}
+    default_model = defaults.get("model")
+
+    def model_of(name: str) -> str | None:
+        return (agents.get(name) or {}).get("model", default_model)
+
+    reviewer = model_of("reviewer")
+    alt = model_of("reviewer_alt")
+    problems: list[str] = []
+    if not alt:
+        problems.append("reviewer_alt is missing from config/dev_agents.yaml")
+    elif policy.auto_merge.second_reviewer_model != alt:
+        problems.append(
+            "config/dev_policy.yaml auto_merge.second_reviewer_model "
+            f"({policy.auto_merge.second_reviewer_model}) does not match "
+            f"reviewer_alt ({alt})"
+        )
+    if reviewer and alt and reviewer == alt:
+        problems.append(
+            "reviewer_alt must use a different model family than reviewer "
+            f"(both are {alt})"
+        )
+    return problems
+
+
 def is_protected(path: str, protected: list[str]) -> bool:
     from .paths import matches_any
 

@@ -199,7 +199,10 @@ def _agents(args: argparse.Namespace) -> None:
         for path in write_dev_all():
             print(path)
     elif args.action == "check":
+        from .policy import load_policy, reviewer_model_problems
+
         problems = check_dev_all()
+        problems += reviewer_model_problems(load_dev_config(), load_policy(_repo()))
         print("dev agents up to date" if not problems else "\n".join(problems))
         if problems:
             raise SystemExit(1)

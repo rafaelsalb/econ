@@ -3,7 +3,7 @@ description: Product manager; interviews the human, drafts and validates a propo
   task contract, then hands off to the deterministic controller. Never edits code
   or merges.
 mode: primary
-model: opencode-go/qwen3.8-max
+model: opencode-go/deepseek-v4.1-flash#max
 hidden: false
 steps: 30
 permissions:
