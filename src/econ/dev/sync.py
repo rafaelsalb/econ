@@ -148,6 +148,14 @@ def sync_pull(
             problems = validate_task(task, policy)
             if problems:
                 raise GitHubSyncError("; ".join(problems))
+            try:
+                existing_local = store.load(task.id)
+            except FileNotFoundError:
+                existing_local = None
+            if existing_local is not None:
+                raise GitHubSyncError(
+                    f"task id {task.id} already exists from {existing_local.source.kind}"
+                )
         except Exception as exc:  # noqa: BLE001
             skipped.append({"number": number, "reason": str(exc)})
             continue

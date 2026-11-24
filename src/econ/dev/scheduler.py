@@ -72,6 +72,12 @@ class DevScheduler:
         return selected
 
     # -- execution ---------------------------------------------------------
+    def _runner(self):
+        kind = self.runner_kind
+        if self.executor == "docker" and kind == "opencode":
+            kind = "docker"
+        return runner_for(self.repo, kind)
+
     def run_once(self, *, max_tasks: int | None = None) -> list[Outcome]:
         if self.pause.paused():
             return []
@@ -87,7 +93,7 @@ class DevScheduler:
                 pipeline = DevPipeline(
                     self.repo,
                     self.policy,
-                    runner=runner_for(self.repo, self.runner_kind),
+                    runner=self._runner(),
                     shadow=self.shadow,
                     auto_merge=self.auto_merge,
                     executor=self.executor,
@@ -103,7 +109,7 @@ class DevScheduler:
                         pipeline = DevPipeline(
                             self.repo,
                             self.policy,
-                            runner=runner_for(self.repo, self.runner_kind),
+                            runner=self._runner(),
                             shadow=self.shadow,
                             auto_merge=self.auto_merge,
                             executor=self.executor,
@@ -119,7 +125,7 @@ class DevScheduler:
                         merged = DevPipeline(
                             self.repo,
                             self.policy,
-                            runner=runner_for(self.repo, self.runner_kind),
+                            runner=self._runner(),
                             shadow=self.shadow,
                             auto_merge=self.auto_merge,
                             executor=self.executor,
