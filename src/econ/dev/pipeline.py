@@ -813,8 +813,18 @@ class DevPipeline:
                 "allowed": False,
                 "reason": f"{approvals} approve review(s); {required} required",
             }
-        if not decision.get("gates", {}).get("auto_merge_ok", True):
-            return {"allowed": False, "reason": "gates do not allow auto-merge"}
+        for gate_key in ("pre_gates", "gates"):
+            gate_info = decision.get(gate_key) or {}
+            if not gate_info:
+                return {
+                    "allowed": False,
+                    "reason": f"missing {gate_key} evidence",
+                }
+            if not gate_info.get("ok") or gate_info.get("human_required"):
+                return {
+                    "allowed": False,
+                    "reason": f"{gate_key} do not allow auto-merge",
+                }
         return {"allowed": True, "reason": "policy allows auto-merge"}
 
     def _merge(
