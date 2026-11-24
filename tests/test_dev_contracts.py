@@ -10,7 +10,7 @@ from econ.dev.models import Task
 from econ.dev.paths import overlap, scope_violations
 from econ.dev.tasks import TaskStore
 
-from dev_support import add_task, demo_task, make_repo
+from dev_support import add_task, default_policy, demo_task, make_repo
 
 
 def test_task_rejects_shell_metacharacters():
@@ -106,3 +106,31 @@ def test_extract_json_prefers_outer_object():
     assert payload["role"] == "verifier"
     assert payload["verdict"] == "pass"
     assert json.dumps(payload).startswith('{"role"')
+
+
+def test_promote_moves_proposed_contract_to_ready(tmp_path):
+    from econ.dev.tasks import promote_task
+
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task().model_copy(update={"status": "proposed"})
+    add_task(repo, task)
+    promoted, path = promote_task(TaskStore(repo), "DEV-0001", default_policy())
+    assert promoted.status == "ready"
+    assert path == repo / "tasks" / "ready" / "DEV-0001.yaml"
+    assert path.exists()
+    assert not (repo / "tasks" / "proposed" / "DEV-0001.yaml").exists()
+    again, same = promote_task(TaskStore(repo), "DEV-0001", default_policy())
+    assert again.status == "ready"
+    assert same == path
+
+
+def test_promote_refuses_non_proposed_task(tmp_path):
+    from econ.dev.tasks import promote_task
+
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task())  # already ready
+    # Ready is idempotent; a completed task is not promotable.
+    task = demo_task().model_copy(update={"status": "done"})
+    TaskStore(repo).save(task, status="done")
+    with pytest.raises(ValueError):
+        promote_task(TaskStore(repo), "DEV-0001", default_policy())

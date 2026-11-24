@@ -138,6 +138,35 @@ class TaskStore:
         return self.save(task)
 
 
+def load_task_ref(store: TaskStore, task_ref: str | Path) -> Task:
+    if isinstance(task_ref, Path) or str(task_ref).endswith(".yaml"):
+        return store.load_path(Path(task_ref))
+    return store.load(str(task_ref))
+
+
+def promote_task(
+    store: TaskStore,
+    task_ref: str | Path,
+    policy: DevPolicy | None = None,
+) -> tuple[Task, Path]:
+    """Promote a proposed contract to ready after policy validation.
+
+    Promotion is deliberately separate from authoring: an agent can draft a
+    contract, but making it runnable is the human handoff into the deterministic
+    controller. The operation is idempotent for an already-ready task.
+    """
+    task = load_task_ref(store, task_ref)
+    if task.status == "ready":
+        return task, store.path_for(task)
+    if task.status != "proposed":
+        raise ValueError(f"{task.id}: only proposed tasks can be promoted, is {task.status}")
+    problems = validate_task(task, policy)
+    if problems:
+        raise TaskValidationError(problems)
+    path = store.save(task, status="ready")
+    return task.model_copy(update={"status": "ready"}), path
+
+
 def new_task_payload(
     *,
     task_id: str,

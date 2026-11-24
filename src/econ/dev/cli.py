@@ -20,7 +20,7 @@ from .report import dashboard_markdown, daily_digest, metrics, write_dashboard
 from .runner import runner_for
 from .scheduler import DevScheduler
 from .sync import GitHubSyncError, sync_pull, sync_push
-from .tasks import TaskStore, new_task_payload
+from .tasks import TaskStore, new_task_payload, promote_task
 from .workspace import current_branch, is_clean
 
 
@@ -124,6 +124,12 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     new.add_argument("--priority", type=int, default=50)
     new.add_argument("--json", action="store_true")
 
+    promote = sp.add_parser(
+        "promote", help="validate a proposed contract and move it to tasks/ready"
+    )
+    promote.add_argument("task", help="task id or YAML path")
+    promote.add_argument("--json", action="store_true")
+
     maintenance = sp.add_parser(
         "maintenance", help="run the deterministic maintenance gate and digest"
     )
@@ -166,6 +172,8 @@ def dispatch(args: argparse.Namespace) -> None:
         _doctor(args)
     elif action == "new":
         _new(args)
+    elif action == "promote":
+        _promote(args)
     elif action == "maintenance":
         _maintenance(args)
     else:
@@ -441,6 +449,31 @@ def _doctor(args: argparse.Namespace) -> None:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
     if failed:
         raise SystemExit(1)
+
+
+def _promote(args: argparse.Namespace) -> None:
+    store = _store()
+    policy = load_policy(_repo())
+    try:
+        task, path = promote_task(store, args.task, policy)
+    except Exception as exc:  # noqa: BLE001
+        raise SystemExit(f"promote failed: {exc}") from exc
+    if args.json:
+        _json(
+            {
+                "task_id": task.id,
+                "status": task.status,
+                "path": str(path),
+                "next": [
+                    f"econ dev run --task {task.id} --shadow",
+                    f"econ dev run --task {task.id}",
+                ],
+            }
+        )
+        return
+    print(f"task={task.id} status={task.status} path={path}")
+    print(f"safe dry run: econ dev run --task {task.id} --shadow")
+    print(f"real run:    econ dev run --task {task.id}")
 
 
 def _maintenance(args: argparse.Namespace) -> None:

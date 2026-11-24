@@ -154,13 +154,18 @@ Evidence:
 |---|---|---|
 | 0 | Baseline, CI, protected paths, gate | `make gate` passes; `.github/workflows/ci.yml`; `.github/CODEOWNERS` |
 | 1 | Dev roster, prompts, commands, task schema, canaries | `config/dev_agents.yaml`; 3/3 canaries pass; `econ dev validate --all` |
-| 2 | Worktree pipeline, blind review, verifier, gates, shadow mode | fake end-to-end merge; `runs/dev/` artifacts; 107 tests |
+| 2 | Worktree pipeline, blind review, verifier, gates, shadow mode | fake end-to-end merge; `runs/dev/` artifacts; 110 tests |
 | 3 | Scheduler, budgets, pause/lock, GitHub sync, dashboard, maintenance, release | `econ dev daemon --once`; `econ dev sync --pull`; dashboard files |
 | 4 | Parallel execution, Docker executor, scheduled workflows, release bot | two-task parallel test; `econ-agent:latest` rebuilt with git; 4 workflows; `v0.2.0` release |
 
 The pipeline enforces red-green tests, scope, secrets, dependency sign-off,
 lockbox hashes, registry append-only, and a risk-tiered merge policy. Risk 3
 changes (`specs/`, data, gates, lockbox, sandbox) are always escalated.
+
+The human front door is the interactive `dev-pm` agent plus `/dev/propose`;
+it writes a validated contract to `tasks/proposed/`. `econ dev promote` is the
+separate human promotion step into `tasks/ready/`; no agent can promote or run
+the controller itself.
 
 Live verification on 2026-11-24: `DEV-9500` ran in a disposable clone with the
 real `dev-*` agents (no fake runner). The lead planned, the implementer wrote
@@ -190,7 +195,7 @@ the data and code hashes, failures and row counts. The curated parquet hash is
 in `data/curated/manifest.json`. Re-running the same command on the same data
 and code reproduces the id.
 
-Tests: **107 passed**. `make gate`, `econ agents check`, `econ dev agents check`,
+Tests: **110 passed**. `make gate`, `econ agents check`, `econ dev agents check`,
 and `econ check` pass. All three development canaries pass; the deterministic
 fake pipeline merges CANARY-001/002 in one round and CANARY-003 in two.
 

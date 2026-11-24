@@ -22,6 +22,7 @@ def test_dev_roster_is_rendered_and_complete():
     specs = {spec.name: spec for spec in dev_agents(load_dev_config())}
     assert {
         "lead",
+        "pm",
         "architect",
         "implementer",
         "reviewer",
@@ -34,8 +35,33 @@ def test_dev_roster_is_rendered_and_complete():
     } <= set(specs)
     assert specs["lead"].mode == "primary"
     assert specs["lead"].hidden is False
+    assert specs["pm"].mode == "primary"
+    assert specs["pm"].hidden is False
     assert specs["implementer"].mode == "subagent"
     assert check_dev_all() == []
+
+
+def test_pm_can_ask_questions_but_cannot_edit_source():
+    from econ.agents import render_dev_all
+
+    rendered = {
+        path.name: text for path, text in render_dev_all().items()
+    }
+    front = yaml.safe_load(rendered["dev-pm.md"].split("---")[1])
+    rules = front["permissions"]
+    question_effects = [
+        rule["effect"] for rule in rules if rule["action"] == "question"
+    ]
+    assert question_effects[-1] == "allow"
+    edit_allows = {
+        rule["resource"]
+        for rule in rules
+        if rule["action"] == "edit" and rule["effect"] == "allow"
+    }
+    assert ".dev/**" in edit_allows
+    assert "tasks/proposed/**" in edit_allows
+    assert "src/**" not in edit_allows
+    assert "tasks/ready/**" not in edit_allows
 
 
 def test_implementer_cannot_edit_protected_paths():

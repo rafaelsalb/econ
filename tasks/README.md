@@ -38,11 +38,26 @@ Rules:
 - `demo` is only for the deterministic fake runner used by tests, smoke runs, and
   canaries. Real agents ignore it.
 
+Authoring in the interactive CLI:
+
+```text
+/dev/propose Fix the percent-sign formatting bug in labels
+```
+
+`dev-pm` writes to `tasks/proposed/`. Promotion to the runnable queue is a
+separate human step:
+
+```bash
+econ dev promote DEV-0001
+econ dev validate DEV-0001
+```
+
 Commands:
 
 ```bash
 econ dev validate --all
 econ dev list
+econ dev promote DEV-0001
 econ dev run --task DEV-0001
 econ dev run --task DEV-0001 --shadow
 econ dev daemon --once

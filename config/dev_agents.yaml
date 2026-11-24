@@ -59,6 +59,28 @@ agents:
         - dev-triage
         - dev-reproducer
 
+  pm:
+    description: Product manager; interviews the human, drafts and validates a proposed task contract, then hands off to the deterministic controller. Never edits code or merges.
+    prompt: config/prompts/dev/pm.md
+    mode: primary
+    model: opencode-go/qwen3.8-max
+    variant: null
+    steps: 30
+    permissions:
+      read: ["**"]
+      edit:
+        - ".dev/**"
+        - "tasks/proposed/**"
+      shell:
+        - "git status *"
+        - "git diff *"
+        - "python -m econ.cli dev list *"
+        - "python -m econ.cli dev status *"
+        - "python -m econ.cli dev validate *"
+      subagents:
+        - dev-triage
+      question: allow
+
   architect:
     description: Design and impact analysis for risk 2 and 3 tasks; read-only except for the design artifact.
     prompt: config/prompts/dev/architect.md

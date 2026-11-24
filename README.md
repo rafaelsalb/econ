@@ -122,6 +122,13 @@ controller runs tasks through plan → implement → blind review → independen
 verify → integrity gates → merge. Agents cannot merge, touch the lockbox, or
 change the rules of the game. Risk 3 changes are always escalated.
 
+In the interactive CLI, select `dev-pm` and run `/dev/propose ...` to interview
+and draft a contract. Promotion is an explicit human step:
+
+```bash
+econ dev promote DEV-0001
+```
+
 ```bash
 econ dev validate --all --canaries
 econ dev smoke --fake                 # full pipeline, no model credits

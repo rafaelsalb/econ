@@ -159,6 +159,13 @@ def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
         perms.append({"action": "subagent", "resource": "*", "effect": "deny"})
 
     perms.extend(_GENERIC_DENIES)
+    question_mode = own_permissions.get(
+        "question", base_permissions.get("question")
+    )
+    if question_mode == "allow":
+        # The question tool is denied for the rest of the roster; the intake
+        # agent is the explicit exception so it can interview the human.
+        perms.append({"action": "question", "resource": "*", "effect": "allow"})
     perms.extend(_SECRET_DENIES)
     perms.extend(_DANGEROUS_SHELL)
     perms.extend(p.get("deny", []))

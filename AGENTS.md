@@ -90,17 +90,21 @@ The development controller puts the worktree `src/` on `PYTHONPATH` and the main
 
 - A runnable task is a frozen YAML contract in `tasks/ready/`; `tasks/proposed/`
   holds triaged work. The scheduler only picks `ready/`.
+- In the interactive CLI, the `dev-pm` agent and `/dev/propose ...` draft a
+  contract into `tasks/proposed/`. Promotion is a separate human step:
+  `econ dev promote DEV-0001` validates and moves it to `ready/`. Agents never
+  promote or run the controller themselves.
 - Acceptance criteria must be executable commands (shell metacharacters are
   rejected). `scope.allow` must name explicit paths. Risk: 0 docs, 1
   tests/refactor, 2 behavior, 3 protected/science.
 - The controller creates an isolated worktree and records run artifacts under
   `.dev/` (gitignored). Agents write role outputs to `.dev/out/<role>.json` and
   never edit `.git/`, commit, push, or merge.
-- Roles: lead/architect design; reproducer writes a failing test; implementer
-  writes the smallest patch plus a red-green test; reviewer is blind to the
-  implementer's rationale; verifier applies the patch to a clean base and runs
-  acceptance independently; science guard checks protected paths, the lockbox,
-  registry append-only, and determinism.
+- Roles: PM interviews and drafts; lead/architect design; reproducer writes a
+  failing test; implementer writes the smallest patch plus a red-green test;
+  reviewer is blind to the implementer's rationale; verifier applies the patch
+  to a clean base and runs acceptance independently; science guard checks
+  protected paths, the lockbox, registry append-only, and determinism.
 - The deterministic controller (`src/econ/dev/`) decides whether to merge. Risk 3
   is always escalated for human sign-off. See `config/dev_policy.yaml` and
   `tasks/README.md`.

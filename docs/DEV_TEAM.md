@@ -23,6 +23,7 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 
 | Agent | Mode | Job |
 |---|---|---|
+| `dev-pm` | primary | Interview the human, draft a proposed contract, validate it, hand off; never edits code or merges |
 | `dev-lead` | primary | Plan, set risk, dispatch; never edits code |
 | `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
 | `dev-implementer` | subagent | Smallest patch plus a red-green test |
@@ -37,6 +38,29 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents
 are not visible inside it.
+
+## The human front door
+
+In the interactive OpenCode CLI, select `dev-pm` and run:
+
+```text
+/dev/propose Fix the percent-sign formatting bug in labels
+```
+
+`dev-pm` interviews you, inspects the relevant code, shows a compact task card,
+and writes a validated contract to `tasks/proposed/` only after confirmation.
+It cannot edit source, move a task to `ready/`, or run the controller.
+
+The handoff is explicit:
+
+```bash
+econ dev promote DEV-0002          # validate, move proposed → ready
+econ dev run --task DEV-0002 --shadow
+econ dev run --task DEV-0002
+```
+
+`econ dev promote` is the human promotion step. It is deliberately separate from
+agent authoring, so no model can silently queue a runnable task.
 
 ## Task contract
 
@@ -124,6 +148,7 @@ The controller enforces this from structured gate results, not from prose.
 ```bash
 econ dev validate --all --canaries
 econ dev list
+econ dev promote DEV-0001                  # human promotion: proposed → ready
 econ dev run --task DEV-0001 --fake        # deterministic local pipeline
 econ dev run --task DEV-0001               # real OpenCode agents
 econ dev run --task DEV-0001 --shadow      # run everything, never merge
