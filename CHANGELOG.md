@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.0 — 2026-11-24
+
+- Development pipeline maintenance.
+
 ## v0.3.1 — 2026-11-24
 
 - Development pipeline maintenance.
