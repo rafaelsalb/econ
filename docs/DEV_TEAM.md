@@ -26,10 +26,10 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 | `dev-pm` | primary | Interview the human, draft a proposed contract, validate it, hand off; never edits code or merges |
 | `dev-lead` | primary | Plan, set risk, dispatch for risk ≥ 2; never edits code |
 | `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
-| `dev-implementer` | subagent | Smallest patch plus a red-green test |
+| `dev-implementer` | subagent | Smallest patch plus a red-green test, on the strong tier (`qwen3.8-max`) |
 | `dev-reviewer` | subagent | Blind diff review on `qwen3.8-max`, risk ≥ 2 only |
-| `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `kimi-k3` |
-| `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance |
+| `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `gpt-6-luna` |
+| `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance, on the strong tier (`qwen3.8-max`) |
 | `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism; risk ≥ 2 only |
 | `dev-scribe` | subagent | Docs only, after approval |
 | `dev-triage` | subagent | Turns a GitHub issue into a task contract |

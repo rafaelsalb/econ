@@ -46,7 +46,7 @@ auto_merge:
     0: 0
     1: 0
     2: 2
-  second_reviewer_model: opencode-go/kimi-k3
+  second_reviewer_model: opencode-go/gpt-6-luna
   # Risk 3 is never auto-merged.
   risk_3: human
 

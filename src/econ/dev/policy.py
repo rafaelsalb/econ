@@ -15,7 +15,9 @@ class AutoMergeConfig(BaseModel):
     # clean-tree verifier; buying an LLM review for a one-file patch is
     # ceremony. Unknown tiers fail safe to one review.
     reviewers: dict[int, int] = Field(default_factory=lambda: {0: 0, 1: 0, 2: 2})
-    second_reviewer_model: str = "opencode-go/kimi-k3"
+    # Must stay a different model family from the roster's first reviewer, and
+    # in sync with config/dev_agents.yaml's reviewer_alt entry.
+    second_reviewer_model: str = "opencode-go/gpt-6-luna"
     risk_3: str = "human"
 
 

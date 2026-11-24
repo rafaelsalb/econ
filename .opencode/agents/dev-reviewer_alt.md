@@ -1,7 +1,8 @@
 ---
-description: Second independent reviewer on a different model, used for risk 2 auto-merges.
+description: Second independent reviewer on a different model family, used for risk
+  2 auto-merges.
 mode: subagent
-model: opencode-go/kimi-k3
+model: opencode-go/gpt-6-luna#high
 hidden: false
 steps: 20
 permissions:

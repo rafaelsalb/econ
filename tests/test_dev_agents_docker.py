@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
 import yaml
 
@@ -12,7 +13,7 @@ from econ.agents import (
     validate_dev_variants,
 )
 from econ.dev.docker import DockerRunner
-from econ.dev.policy import DevPolicy
+from econ.dev.policy import DevPolicy, load_policy
 from econ.dev.runner import OpencodeRunner, parse_opencode_events
 
 from dev_support import make_repo
@@ -83,6 +84,19 @@ def test_implementer_cannot_edit_protected_paths():
 def test_dev_variants_resolve_or_catalog_is_missing():
     problems = validate_dev_variants()
     assert not problems or all("catalog cache unavailable" in p for p in problems)
+
+
+def test_reviewer_models_diverge_and_spend_where_the_work_is():
+    specs = {spec.name: spec for spec in dev_agents(load_dev_config())}
+    # The second reviewer is a genuinely different model family...
+    assert specs["reviewer_alt"].model == "opencode-go/gpt-6-luna"
+    assert specs["reviewer_alt"].model != specs["reviewer"].model
+    # ...and the policy pin agrees with the roster.
+    policy = load_policy(Path(__file__).resolve().parent.parent)
+    assert policy.auto_merge.second_reviewer_model == specs["reviewer_alt"].model
+    # The roles where the work actually happens run on the strong tier.
+    for role in ("implementer", "verifier"):
+        assert specs[role].model == "opencode-go/qwen3.8-max"
 
 
 def test_opencode_argv_is_archived_and_auto():

@@ -2,7 +2,7 @@
 description: Writes the smallest code and test patch that satisfies the acceptance
   criteria.
 mode: subagent
-model: opencode-go/deepseek-v4.1-flash#max
+model: opencode-go/qwen3.8-max
 hidden: false
 steps: 40
 permissions:
