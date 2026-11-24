@@ -118,28 +118,177 @@ records the variable name, never the key.
 ## Multi-agent development team
 
 Development itself is automated by a second, separate roster. A deterministic
-controller runs tasks through plan → implement → blind review → independent
-verify → integrity gates → merge. Agents cannot merge, touch the lockbox, or
-change the rules of the game. Risk 3 changes are always escalated.
+controller runs tasks through propose → implement → blind review → independent
+verify → integrity gates → merge. Agents never commit, push, or merge; the
+controller and the mechanical gates are the authority. Risk 3 changes always
+escalate for human sign-off.
 
-In the interactive CLI, select `dev-pm` and run `/dev/propose ...` to interview
-and draft a contract. Promotion is an explicit human step:
+The loop in one line:
 
-```bash
-econ dev promote DEV-0001
+```
+propose → review → promote → run → gates → merge (or escalate)
 ```
 
+### Step 0 — one-time setup
+
 ```bash
-econ dev validate --all --canaries
-econ dev smoke --fake                 # full pipeline, no model credits
-econ dev run --task DEV-0001 --fake   # one task end to end
-econ dev daemon --once --max-parallel 2
-econ dev report --write               # reports/dev_dashboard.html
+uv venv --python 3.12
+uv pip install -e ".[dev]"
+make gate              # tests + econ check + roster drift + contract validation
+econ dev doctor        # local environment: git, gh, opencode, model catalog
 ```
 
-The roster is `config/dev_agents.yaml`; tasks are YAML contracts in
-`tasks/`; the policy and protected paths are in `config/dev_policy.yaml`.
-The full operating manual is `docs/DEV_TEAM.md`.
+### Step 1 — propose a task contract
+
+Interactive, with the PM agent:
+
+```text
+/dev/propose Fix the percent-sign formatting bug in report labels
+```
+
+`dev-pm` interviews you, inspects the relevant code, shows a task card, and
+writes `tasks/proposed/DEV-0001.yaml` only after you confirm. It cannot edit
+source, promote a contract, or run the controller.
+
+Headless or hand-written:
+
+```bash
+econ dev new --title "Fix label formatting" \
+  --goal "Labels render with a literal %; they must show the formatted value." \
+  --acceptance "python -m pytest tests/test_labels.py -q" \
+  --allow "src/econ/labels.py" --risk 1
+cp tasks/templates/task.yaml tasks/proposed/DEV-0002.yaml   # or start from the template
+```
+
+A contract is runnable only if the acceptance criteria are executable commands
+(no shell metacharacters), `scope.allow` names explicit paths, and the risk is
+honest: **0** docs, **1** tests/refactor, **2** behavior change, **3**
+protected/science. A task that needs a protected path is risk 3 by
+construction and will escalate.
+
+### Step 2 — review and promote
+
+Read the contract the way you would read a PR: an observable goal, a
+falsifiable acceptance command, and the smallest scope that can satisfy it.
+
+```bash
+econ dev validate tasks/proposed/DEV-0001.yaml   # schema, scope, commands
+econ dev promote DEV-0001                        # validate, move to tasks/ready/
+```
+
+Promotion is a human step; no agent can do it. (Trusted GitHub issues are the
+one exception — see [GitHub intake](#github-intake-optional).)
+
+### Step 3 — dry run
+
+```bash
+econ dev run --task DEV-0001 --shadow   # full pipeline, never merges
+econ dev run --task DEV-0001 --fake     # deterministic fake agents, no credits
+```
+
+Shadow mode gives you the gate evidence, cost, and rounds before anything
+touches `main`.
+
+### Step 4 — run it
+
+```bash
+econ dev run --task DEV-0001          # one task, auto-merge by policy
+econ dev daemon --once --sync         # one scheduler tick
+econ dev daemon --sleep 60 --sync     # long-running loop
+econ dev pause --reason "review queue"  # kill switch
+econ dev resume
+```
+
+The daemon selects `tasks/ready/` by priority, risk, and age, enforces file
+scope claims (parallel workers never touch the same paths), keeps a daily
+budget, and records every run under `runs/dev/tasks/<ID>/`. Bound a run with
+`--max-parallel N`, `--daily-budget USD`, `--max-tasks N`; add
+`--executor docker` for the container executor.
+
+### Step 5 — watch
+
+```bash
+econ dev status                 # queue, active task, budget, lock, last tick
+econ dev list                   # every contract and its status
+econ dev report --write         # reports/dev_dashboard.{md,html}
+econ dev report --digest --days 7
+```
+
+Each run directory holds `decision.json`, `gates-pre.json`, `gates-post.json`,
+`patch.diff`, `events.jsonl`, and `cost.json`. Statuses: `done`, `shadow`,
+`escalated`, `failed`, `awaiting_merge`.
+
+### Step 6 — handle escalations
+
+Escalated contracts move to `tasks/escalated/`; failed runs to
+`tasks/failed/`. An escalation means a gate or the policy said "a human
+decides":
+
+- risk 3 (specs, data, registry, eval, sandbox, the lockbox, the controller,
+  CI, the canary suite);
+- a protected or merge-critical path in the diff;
+- a dependency change, a coverage drop on changed sources, a size-cap or
+  review-policy violation, a rebase conflict, or an exhausted round budget.
+
+Read `decision.json` and the gate reports, then choose: accept the patch
+(apply/merge it yourself) or reject it and fix the contract — smaller scope,
+better acceptance, or split it. Never loosen a gate to make a task pass.
+Re-queue by correcting the contract, setting `status: ready`, and moving it
+into `tasks/ready/`.
+
+### Step 7 — change models, prompts, and gates
+
+```bash
+econ dev agents list       # resolved model#variant for every role
+econ dev agents render     # rewrite .opencode/agents/dev-*.md
+econ dev agents check      # drift, reviewer-policy and family-divergence checks
+econ dev agents validate   # model/variant resolution against the local catalog
+```
+
+Models and reasoning effort live only in `config/dev_agents.yaml`; prompts in
+`config/prompts/dev/`; protected paths, auto-merge policy, budgets and gates
+in `config/dev_policy.yaml`. Model choice is configuration, not code: the
+suite asserts relationships (the second reviewer is a different family, the
+policy pin matches the roster), not specific model IDs. After any prompt or
+model change run the held-out suite:
+
+```bash
+econ dev canary --run --fake
+```
+
+A failed or budget-exhausted run writes a *proposed* regression canary to
+`dev/evals/canary/proposed/`; curate it and promote it with
+`econ dev canary --promote CANARY-004`. Nothing runs from `proposed/` until
+then.
+
+### Step 8 — maintain and release
+
+```bash
+econ dev maintenance --create-issue   # nightly gate: tests, checks, drift, contracts
+econ dev release --bump patch --dry-run
+econ dev release --bump patch
+```
+
+### GitHub intake (optional)
+
+The issue form asks for goal, executable acceptance, risk, and scope. With
+`github.auto_promote: true` and your handle in `trusted_authors`
+(`config/dev_policy.yaml`), each daemon tick with `--sync` imports labeled
+issues and promotes complete trusted contracts straight to `tasks/ready/`.
+`econ dev sync --push` comments progress back and closes merged issues.
+
+### What runs at each risk tier
+
+| Risk | Typical change | Pipeline | Merge |
+|---|---|---|---|
+| 0 | docs, comments | implementer → verifier → gates | auto |
+| 1 | tests, refactors | reproducer first for bug contracts → implementer → verifier → gates | auto |
+| 2 | non-protected behavior | lead → architect → implementer → two reviewers on different families → verifier → science guard → gates + coverage delta | auto if no critical path, no coverage drop, ≤12 files / ≤400 lines |
+| 3 | specs, data, registry, eval, sandbox, controller, CI, canaries | escalated before a worktree | human only |
+
+Agents never commit, push, or merge — the controller does. The full operating
+manual, policy rationale, and escalation artifacts are in
+`docs/DEV_TEAM.md`.
 
 ## Quickstart
 
