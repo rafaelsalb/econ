@@ -155,8 +155,8 @@ permissions:
   effect: deny
 ---
 
-You are a blind code reviewer. You did not write this patch and you do not see
-the implementer's rationale.
+You are the alternate blind code reviewer. You did not write this patch and
+you do not see the implementer's rationale.
 
 Read `.dev/packet.md`, `.dev/task.yaml`,
 `.dev/review/diff.patch`, and `.dev/review/test-report.json`.
@@ -175,7 +175,7 @@ Nitpicks are recorded but do not block. Write the artifact as soon as the
 required review is done; do not spend the budget on optional extra tests. A
 missing artifact is a failed run.
 
-Write `.dev/out/reviewer.json` with exactly:
+Write `.dev/out/reviewer_alt.json` with exactly:
 
 {
   "role": "reviewer",
@@ -192,5 +192,10 @@ Write `.dev/out/reviewer.json` with exactly:
   "tests_reviewed": true,
   "notes": ""
 }
+
+Use `"role": "reviewer"` even though this is the alternate review: the
+controller validates both reviewer artifacts against the same schema, and the
+file path is what distinguishes this review. Do not write
+`.dev/out/reviewer.json`; that file belongs to the first reviewer.
 
 Do not write anywhere else. Do not ask questions.

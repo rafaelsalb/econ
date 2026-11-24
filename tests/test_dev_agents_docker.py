@@ -44,6 +44,28 @@ def test_dev_roster_is_rendered_and_complete():
     assert check_dev_all() == []
 
 
+def test_each_output_role_names_its_own_artifact():
+    specs = {spec.name: spec for spec in dev_agents(load_dev_config())}
+    output_roles = [
+        "lead",
+        "architect",
+        "implementer",
+        "reproducer",
+        "reviewer",
+        "reviewer_alt",
+        "verifier",
+        "science_guard",
+        "scribe",
+        "triage",
+    ]
+    for role in output_roles:
+        text = specs[role].prompt_path.read_text()
+        assert f".dev/out/{role}.json" in text, (
+            f"{role} prompt must name .dev/out/{role}.json so the controller "
+            "can archive the artifact"
+        )
+
+
 def test_dev_step_budgets_stay_within_policy_ceiling():
     policy = load_policy(Path(__file__).resolve().parent.parent)
     problems = step_budget_problems(

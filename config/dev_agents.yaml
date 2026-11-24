@@ -171,7 +171,7 @@ agents:
 
   reviewer_alt:
     description: Second independent reviewer on a different model family, used for risk 2 auto-merges.
-    prompt: config/prompts/dev/reviewer.md
+    prompt: config/prompts/dev/reviewer_alt.md
     model: opencode-go/gpt-6-luna
     variant: high
     steps: 32
