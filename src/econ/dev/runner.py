@@ -153,6 +153,10 @@ class OpencodeRunner:
     ) -> AgentResult:
         argv = self.command(role, prompt, model_override=model_override)
         env = command_env(self.repo, cwd)
+        # subprocess.run(cwd=...) does not update PWD. OpenCode's project
+        # discovery consults the inherited PWD, so without this it can resolve
+        # the session back to the main checkout.
+        env["PWD"] = str(cwd.resolve())
         env.update(self.extra_env)
         start = time.time()
         timed_out = False

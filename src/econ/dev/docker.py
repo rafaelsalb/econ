@@ -144,6 +144,7 @@ class DockerRunner:
             "XDG_CONFIG_HOME": "/home/econ/.config",
             "XDG_DATA_HOME": "/home/econ/.local/share",
             "XDG_CACHE_HOME": "/home/econ/.cache",
+            "PWD": "/workspace",
             "PYTHONPATH": "/workspace/src",
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONHASHSEED": "0",

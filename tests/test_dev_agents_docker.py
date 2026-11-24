@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 import yaml
 
@@ -66,6 +67,28 @@ def test_opencode_argv_is_archived_and_auto():
     assert "--auto" in argv
     assert "--agent" in argv and "dev-implementer" in argv
     assert "--format" in argv and "json" in argv
+
+
+def test_opencode_runner_sets_pwd_to_the_worktree(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    repo = make_repo(tmp_path / "repo")
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    runner = OpencodeRunner(repo)
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        captured["env"] = kwargs.get("env", {})
+        captured["cwd"] = kwargs.get("cwd")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = runner.run("lead", worktree, "hello")
+    assert result.exit_code == 0
+    assert captured["cwd"] == worktree
+    assert captured["env"]["PWD"] == str(worktree.resolve())
 
 
 def test_parse_opencode_events():
