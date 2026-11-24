@@ -200,6 +200,17 @@ class DockerRunner:
             out = exc.stdout if isinstance(exc.stdout, str) else ""
             err = exc.stderr if isinstance(exc.stderr, str) else ""
             code = 124
+            if "--name" in argv:
+                try:
+                    name = argv[argv.index("--name") + 1]
+                    subprocess.run(
+                        [self.executable, "kill", name],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                except (IndexError, OSError):
+                    pass
         text, cost, tokens = parse_opencode_events(out)
         return AgentResult(
             role=role,
