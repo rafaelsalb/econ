@@ -1,0 +1,31 @@
+id: DEV-0027
+title: Run advisory critics for all four school models
+status: proposed
+risk: 3
+priority: 70
+created: '2026-11-24'
+goal: '`econ loop <model> --agents` runs both advisory critics for monetarist, fiscal
+  and post-Keynesian models as well as new_keynesian, each with that model''s own
+  card, source file, redacted defects and gate file. Without --agents nothing changes.'
+acceptance:
+- python -m pytest tests/test_advisory_all_models.py -q
+scope:
+  allow:
+  - src/econ/loop.py
+  - src/econ/cli.py
+  - tests/test_advisory_all_models.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Depends on DEV-0020 and DEV-0026. Risk 3: touches src/econ/loop.py, so a
+  human signs off. Tests must stub run_agent and never run a saving backtest, open
+  the lockbox, or write to registry/.'

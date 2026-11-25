@@ -334,6 +334,11 @@ class GateRunner:
                 "lines": lines,
                 "added": added,
                 "deleted": deleted,
+                "limit_files": limit_files,
+                "limit_lines": limit_lines,
+                "remaining_lines": max(0, limit_lines - lines),
+                "over_lines": max(0, lines - limit_lines),
+                "over_files": max(0, len(changed) - limit_files),
             },
         )
 

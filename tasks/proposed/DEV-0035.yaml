@@ -1,0 +1,28 @@
+id: DEV-0035
+title: Label v1.1 model cards as lockbox-informed
+status: proposed
+risk: 0
+priority: 50
+created: '2026-11-24'
+goal: docs/STATUS.md and docs/METHOD.md state that the lockbox has been read, that
+  v1.1 card ideas are partly informed by it, and that it cannot serve as a clean
+  out-of-sample test for them.
+acceptance:
+- python -m econ.cli check
+scope:
+  allow:
+  - docs/STATUS.md
+  - docs/METHOD.md
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 8
+  max_diff_lines: 60
+source:
+  kind: local
+notes: Wording only. Do not add or restate lockbox numbers.

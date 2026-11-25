@@ -1,0 +1,94 @@
+id: DEV-0014
+title: Add the dev-pm authoring chat session
+status: proposed
+risk: 2
+priority: 30
+created: '2026-11-24'
+goal: |
+  Add `/chat`, the authoring surface, using the real `dev-pm` agent to draft
+  task contracts into `tasks/proposed/`.
+
+  `src/econ/webui/chat.py` provides `ChatService(repo, client: OpenCodeAPI)`.
+  `runs/dev/web/chat.json` holds the current session id and title. The service
+  exposes `start(title)`, `current_session()`, `history()`, `send(text)`,
+  `pending_forms()`, `proposed_tasks()`, and `session_cost()`. `history()`
+  normalizes messages for the page: user messages by their `text`; assistant
+  messages by concatenating `content` entries of `type=text` and listing
+  `type=tool` names; ignore system, synthetic, shell, and idle messages.
+  `proposed_tasks()` is a pure read of `tasks/proposed/`. Starting a session is
+  the only chat action that writes `chat.json`; the console never writes a
+  task file, the PM does that through its own permissions.
+
+  `/chat` renders the session status, the normalized transcript, a text input
+  with a send button, session cost/tokens from `client.session`, and a sidebar
+  of proposed tasks with id, title, risk, validation badge, and a link to
+  `/tasks/{id}`. When there is no session, show a `Start authoring session`
+  button. When the service is unavailable, render an error banner with the
+  `OpenCodeUnavailable` message and keep the rest of the console working;
+  never 500. If the PM has a pending question, show a notice that form
+  answering arrives in DEV-0018 rather than silently dropping it.
+
+  All POSTs use the DEV-0011 CSRF check. `send` rejects empty text with 400.
+  The chat page escapes every message, tool name, and proposed-task field; a
+  `<script>` in model output must not execute. No merge, promote, lockbox,
+  model selector, or generic agent chat lives on this page.
+
+  `create_console_app(repo, *, opencode_client=None)` must not run
+  `opencode service status` at import or app creation. When no client is
+  injected, the first `/chat` request discovers the service lazily and caches
+  the result; a discovery failure sets a disabled chat service that renders
+  the error banner, and the rest of the console still starts and serves.
+  Never raise from discovery on the app factory.
+acceptance:
+  - python -m pytest tests/test_webui_chat.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/chat.py
+    - src/econ/templates/console/base.html
+    - src/econ/templates/console/chat.html
+    - tests/webui_support.py
+    - tests/test_webui_chat.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 6
+  max_diff_lines: 400
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run after DEV-0011 (CSRF helper) and DEV-0013 (OpenCode client) have merged.
+  This is the chat core; forms, permissions, and SSE are DEV-0018, split so the
+  first chat slice fits the risk-2 size cap. The PM may ask a question
+  immediately; the page must show that state honestly and leave the full
+  interview to DEV-0018.
+
+  Tests always inject a fake implementing `OpenCodeAPI`; never use the real
+  service or spend credits. Cover: no session, start session, transcript
+  normalization (user text, assistant text, tool names, ignored system rows),
+  a text message POST, an empty message 400, CSRF 403, session cost, the
+  proposed-task sidebar, service-unavailable rendering, an escaped `<script>`
+  in model output, lazy discovery not running at app creation, and a
+  before/after snapshot proving GETs do not write.
+
+  `chat.json` and the audit log are the only console writes (plus whatever
+  the PM writes to `tasks/proposed/`). The audit line should record the chat
+  action, session id, and result, never the message text or the service
+  password.

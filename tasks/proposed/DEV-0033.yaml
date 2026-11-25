@@ -1,0 +1,30 @@
+id: DEV-0033
+title: Generate the data provenance notes without a model
+status: proposed
+risk: 2
+priority: 40
+created: '2026-11-24'
+goal: A new command `econ provenance` prints, from data/curated/manifest.json and
+  the series catalog, each series with its source, release lag, coverage and known
+  gaps, and labels the data as pseudo-vintages. It is deterministic, read-only and
+  needs no network or model.
+acceptance:
+- python -m pytest tests/test_provenance.py -q
+scope:
+  allow:
+  - src/econ/provenance.py
+  - src/econ/cli.py
+  - tests/test_provenance.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: The librarian agent stays for judgement calls. Do not run econ ingest.

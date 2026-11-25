@@ -1,0 +1,97 @@
+id: DEV-0017
+title: Add the lock-aware job supervisor and run/tick actions
+status: proposed
+risk: 2
+priority: 55
+created: '2026-11-24'
+goal: |
+  Add the execution controls to the console without reimplementing the
+  controller.
+
+  `src/econ/webui/jobs.py` owns `JobSupervisor(repo, *, popen=None,
+  clock=None)`. It starts a fixed argv with `subprocess.Popen(..., cwd=repo,
+  stdout=<job log>, stderr=STDOUT, start_new_session=True, shell=False)`,
+  records `runs/dev/web/jobs/<job_id>.json` with kind, argv, pid, started_at,
+  and exit_code, and appends to `runs/dev/web/audit.jsonl` with ts, action,
+  task_id, argv, and result. Jobs are refreshed with `poll()`; a job whose pid
+  is dead and whose artifacts are terminal is shown as finished, not running.
+
+  Add two actions on top of the DEV-0011 CSRF and audit helpers:
+
+  - run requires a `ready` task and `mode=shadow|real`; a real run requires
+    `confirm=1`. It refuses with 409 when paused, when the daemon lock is held,
+    when the daily budget remaining is below `task.limits.max_usd`, or when
+    `task.risk >= 3` (risk 3 is a human CLI sign-off, not a web action). A
+    shadow run is the default button. For a direct run the supervisor acquires
+    `runs/dev/.daemon.lock`, rewrites the owner pid to the child pid, and
+    releases the lock when the job exits so a crashed web process cannot leave
+    a live child unguarded;
+  - tick spawns `[sys.executable, "-m", "econ.cli", "dev", "daemon", "--once"]`
+    plus `--sync` when checked, and lets the daemon acquire its own lock. It
+    refuses with 409 when paused or when a live lock is already held.
+
+  The only spawn arguments are `[sys.executable, "-m", "econ.cli", "dev",
+  ...]` plus a validated task id and fixed flags. Never interpolate a shell
+  string, never use `shell=True`, and reject an id that does not match
+  `TASK_ID_RE`.
+
+  The overview gains a `Run next tick` control and a job status strip. The task
+  detail page gains `Run shadow` and `Run real` buttons with a confirmation
+  checkbox for real runs, and explains that risk 3 is CLI-only. A successful
+  action redirects with a short notice; a refused action renders the page with
+  the reason. GETs remain side-effect free; the only writes are the job JSON,
+  the job log, the lock file, and the audit line.
+acceptance:
+  - python -m pytest tests/test_webui_jobs.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/jobs.py
+    - src/econ/templates/console/overview.html
+    - src/econ/templates/console/task.html
+    - tests/webui_support.py
+    - tests/test_webui_jobs.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 6
+  max_diff_lines: 380
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run after DEV-0011 has merged; reuse its CSRF, audit, and loopback rules.
+  DEV-0012 (daemon start/stop/adopt) depends on this task. Do not add the
+  daemon supervisor here.
+
+  The web process only spawns the existing CLI; it never calls
+  `DevPipeline.run_task`, never merges, and never edits a gate or policy. A
+  direct run holds `.daemon.lock` so the daemon cannot start a competing tick.
+  A scheduler tick does not hold the lock in the web process; the daemon takes
+  it itself. Risk 3 is deliberately not runnable from the web even though the
+  CLI would escalate it before a worktree. Read the daily budget through the
+  pure DEV-0016 reader; do not construct `BudgetLedger`, which can rewrite
+  `budget.json` on a date rollover.
+
+  Tests must inject a fake `Popen` and a fake clock, never spend credits, and
+  never start a real daemon. Cover: run refused when paused/locked/
+  budget-exhausted/risk 3/not ready, the exact argv for shadow and real runs,
+  the real-run confirmation, the direct-run lock owner rewrite and release,
+  tick argv with and without `--sync`, tick refused when locked, a bad task id,
+  the job JSON and audit line, and a GET snapshot that is unchanged.

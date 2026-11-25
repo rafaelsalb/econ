@@ -1,0 +1,33 @@
+id: DEV-0019
+title: Let the dev implementer render research agents
+status: proposed
+risk: 3
+priority: 99
+created: '2026-11-24'
+goal: The dev implementer can run exactly `python -m econ.cli agents render` (and
+  the .venv/bin form), so a change to the research roster or prompts can ship with
+  matching generated files. No other new shell or edit permission is added, and
+  `agents render` for the dev roster stays forbidden.
+acceptance:
+- python -m pytest tests/test_dev_implementer_render.py -q
+scope:
+  allow:
+  - config/dev_agents.yaml
+  - .opencode/agents/dev-implementer.md
+  - tests/test_dev_implementer_render.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Prerequisite for every contract that edits config/agents.yaml or config/prompts/*.md:
+  today the implementer can neither edit .opencode/agents nor run the renderer,
+  so `agents check` would fail. This widens an agent permission (a shell command
+  that writes files), hence human sign-off.'

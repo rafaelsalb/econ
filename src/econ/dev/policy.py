@@ -40,6 +40,10 @@ class BudgetConfig(BaseModel):
     daily_usd: float = 20.0
     per_task_usd: float = 5.0
     max_review_rounds: int = 2
+    # Extra implementation attempts that do not consume a review round. A
+    # pre-gate failure is a mechanical repair, not a review: without this a
+    # size-cap overrun on the last round escalates before the second review.
+    max_repair_rounds: int = Field(default=1, ge=0, le=3)
     max_agent_steps: int = 60
     max_wall_seconds: int = 2400
 

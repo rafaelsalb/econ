@@ -1,0 +1,31 @@
+id: DEV-0020
+title: Redact forecast scores from the critics' defect file
+status: proposed
+risk: 3
+priority: 98
+created: '2026-11-24'
+goal: 'The defects.json copied into each research critic''s inbox carries no forecast
+  scores: every D5 defect is reduced to target, horizon and gate result, as the
+  modeler view does today. This includes Theil U, Mincer-Zarnowitz p, Focus ratio,
+  DM p and direction, in both evidence and message. The full defects.json written
+  for the human is unchanged, and decisions are unchanged.'
+acceptance:
+- python -m pytest tests/test_advisory_redaction.py -q
+scope:
+  allow:
+  - src/econ/loop.py
+  - tests/test_advisory_redaction.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 8
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Risk 3: touches src/econ/loop.py, so a human signs off. Tests must stub
+  run_agent and never run a saving backtest, open the lockbox, or write to registry/.'

@@ -130,7 +130,7 @@ acceptance:
 scope:
   allow: ["src/econ/example.py", "tests/test_example.py"]
   deny: ["specs/**", "data/**", "registry/**", "eval/**"]
-limits: {max_review_rounds: 2, max_usd: 5, max_changed_files: 10, max_diff_lines: 300}
+limits: {max_review_rounds: 2, max_usd: 5, max_changed_files: 10, max_diff_lines: 400}
 ```
 
 Acceptance commands are parsed and executed without a shell. Shell
@@ -160,7 +160,14 @@ READY → PLAN → IMPLEMENT → REVIEW → VERIFY → POST-GATES → INTEGRITY 
   enough.
 - Merge is a serial queue. The branch is rebased onto `main` and the full gate
   is rerun before a fast-forward merge.
-- Max two review rounds and one replan; then a human gets an escalation.
+- Max two review rounds plus one mechanical repair attempt; then a human gets
+  an escalation. A pre-gate failure (size, acceptance, full tests) is a repair,
+  not a review, so it does not consume the second review round. The bound is
+  `budget.max_repair_rounds` (default 1) in `config/dev_policy.yaml`.
+- Size limits are hard gates. `max_diff_lines` counts added + deleted lines for
+  the whole branch diff, including tests and templates. Leave headroom for one
+  review fix, and split the task rather than tightening the budget below the
+  natural size of the change.
 
 ## Gates
 

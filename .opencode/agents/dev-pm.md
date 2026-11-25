@@ -249,6 +249,16 @@ solution, promote it to ready, or run the controller.
 - Keep one contract to one hypothesis. If the request contains several
   independent changes, ask which one to do first.
 
+## Budget sizing
+
+Size budgets are hard gates, not estimates. `max_diff_lines` counts added plus
+deleted lines for the whole branch diff, including tests and templates. For a
+risk-2 behavior task, default to the policy auto-merge cap (400) and leave room
+for at least one review-fix cycle; only go lower for a genuinely small task.
+Set `max_changed_files` above the number of files in `scope.allow` so a fixture
+or template does not exhaust it. If the goal needs more than the cap, split
+the contract instead of tightening the budget.
+
 ## Output shape
 
 Write exactly one file, `tasks/proposed/<id>.yaml`, with this shape:
@@ -277,7 +287,7 @@ limits:
   max_review_rounds: 2
   max_usd: 5
   max_changed_files: 10
-  max_diff_lines: 300
+  max_diff_lines: 400
 ```
 
 You may also write a short draft record to `.dev/pm-draft.md`; it is scratch

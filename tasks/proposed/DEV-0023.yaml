@@ -1,0 +1,33 @@
+id: DEV-0023
+title: Have research agents write a draft result early
+status: proposed
+risk: 2
+priority: 79
+created: '2026-11-24'
+goal: Each research prompt tells the agent to write a valid draft of out/result.json
+  right after reading its inputs and to overwrite it as the analysis improves, so
+  hitting the step limit still leaves a parseable result.
+acceptance:
+- python -m pytest tests/test_research_prompt_draft.py -q
+- python -m econ.cli agents check
+scope:
+  allow:
+  - config/prompts/*.md
+  - .opencode/agents/econ-*.md
+  - tests/test_research_prompt_draft.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Run after DEV-0019, which lets the implementer render research agents. Never
+  hand-edit rendered files: run `python -m econ.cli agents render`. Step limits
+  are unchanged. A live run is still needed to confirm the behaviour; the tests
+  only check the instruction.'

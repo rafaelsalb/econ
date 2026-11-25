@@ -18,9 +18,12 @@ scope:
     - data/**
     - registry/**
     - eval/**
+# Hard gates, not estimates. max_diff_lines counts added + deleted lines for
+# the whole branch diff, including tests and templates. Leave room for one
+# review fix; risk 2 should prefer 400 (the policy auto-merge cap) or split.
 limits:
   max_review_rounds: 2
   max_usd: 5
   max_changed_files: 10
-  max_diff_lines: 300
+  max_diff_lines: 400
 notes: ""

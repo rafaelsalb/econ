@@ -1,0 +1,40 @@
+id: DEV-0032
+title: Retire the research modeler agent
+status: proposed
+risk: 2
+priority: 44
+created: '2026-11-24'
+goal: The modeler is removed from the research roster, and `agents render` deletes
+  generated files for agents no longer in the roster, limited to its own prefix.
+  Ladder design before freeze belongs to the theorist.
+acceptance:
+- python -m pytest tests/test_agents.py -q
+- python -m pytest tests/test_research_roster.py -q
+- python -m econ.cli agents check
+scope:
+  allow:
+  - config/agents.yaml
+  - config/prompts/modeler.md
+  - src/econ/agents.py
+  - .opencode/agents/econ-*.md
+  - tests/test_agents.py
+  - tests/test_research_roster.py
+  - README.md
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 13
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Run after DEV-0019, which lets the implementer render research agents. Never
+  hand-edit rendered files: run `python -m econ.cli agents render`. Depends on DEV-0031.
+  Update the expected roster and remove the modeler-only shell test; keep the _modeler_view
+  redaction test. loop.py still writes modeler_packet.md; leave it. Choose this
+  over keeping the modeler for ladder design: reject the contract if you prefer
+  that.'

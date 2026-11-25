@@ -1,0 +1,88 @@
+id: DEV-0008
+title: Add the read-only task board and task detail pages
+status: proposed
+risk: 2
+priority: 90
+created: '2026-11-24'
+goal: |
+  Extend the console from DEV-0007/0016 with a read-only task board and task
+  detail page.
+
+  `/tasks` groups every task by its status directory: proposed, ready, active,
+  done, escalated, failed. A task whose model status is `shadow` lives in
+  `tasks/done/` and must show a `shadow` badge in the done group, not a
+  separate column. Within a group, show id, title, risk, priority, source kind
+  and number, and a validation badge. Invalid contracts render an error row
+  with the validation problem; a duplicate id across directories renders a
+  duplicate warning and the detail page for that id returns 409. Ready tasks
+  keep the same scheduler order as the overview (`-priority`, `risk`,
+  `created`, `id`).
+
+  `/tasks/{task_id}` shows the frozen contract fields (title, status, risk,
+  priority, created, goal, acceptance, scope.allow, scope.deny, limits, source,
+  notes), the task SHA-256, and the output of `validate_task` under the repo
+  policy. Only ids matching `TASK_ID_RE` are routable; unknown ids return 404
+  and path traversal is rejected. A malformed YAML file is a 200 page with an
+  error card, not a traceback.
+
+  If `runs/dev/tasks/<id>/` exists, show a link to `/runs/<id>`; the run route
+  itself is DEV-0009, so do not implement it here. Add a `Tasks` link to the
+  base navigation.
+
+  Reads stay pure: do not call `TaskStore.ensure()`, `TaskStore.load()` (which
+  calls `ensure()`), or any writer. Glob the status directories directly and
+  parse with `yaml.safe_load` plus `Task.model_validate`. HTML-escape every
+  task field; a `<script>` in a title or goal must not execute. A GET must not
+  change the repository tree.
+acceptance:
+  - python -m pytest tests/test_webui_tasks.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/readmodels.py
+    - src/econ/templates/console/base.html
+    - src/econ/templates/console/tasks.html
+    - src/econ/templates/console/task.html
+    - tests/webui_support.py
+    - tests/test_webui_tasks.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 7
+  max_diff_lines: 380
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run only after DEV-0007 and DEV-0016 have merged. This slice assumes the app
+  factory, read-model helpers, base template, and temp-repo fixture exist.
+
+  Do not add mutation controls here: promote/run/pause belong to DEV-0011.
+  The board is a view of the status directories, not a state machine. Do not
+  move or rewrite task files.
+
+  `TaskStore.load_path()` rejects a status that does not match its directory;
+  the board should surface that as a validation error rather than silently
+  hiding the file. `TaskStore.load()` calls `ensure()`, so do not use it on a
+  GET.
+
+  Tests should cover: every status group, the shadow badge in done, scheduler
+  order in ready, an invalid acceptance command, a duplicate id, a malformed
+  YAML file, a `<script>` title, unknown id 404, traversal 404, and a
+  before/after snapshot proving GET is side-effect free.

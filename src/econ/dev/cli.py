@@ -12,7 +12,7 @@ from .artifacts import write_json
 from .canary import run_canaries, run_smoke, validate_canaries
 from .locks import PauseSwitch
 from .maintenance import run_maintenance
-from .models import Task, validate_task
+from .models import Task, limit_warnings, validate_task
 from .pipeline import DevPipeline
 from .policy import load_policy, policy_path
 from .release import release, read_version
@@ -229,6 +229,7 @@ def _validate(args: argparse.Namespace) -> None:
     policy = load_policy(_repo())
     store = _store()
     problems: list[str] = []
+    warnings: list[str] = []
     if args.task:
         try:
             task = (
@@ -237,16 +238,25 @@ def _validate(args: argparse.Namespace) -> None:
                 else store.load(args.task)
             )
             problems.extend(validate_task(task, policy))
+            warnings.extend(limit_warnings(task, policy))
         except Exception as exc:  # noqa: BLE001
             problems.append(str(exc))
     else:
         problems = store.validate_all(policy)
+        if not problems:
+            for task in store.all():
+                # Historical task records are not actionable; warn on
+                # contracts that can still be edited or run.
+                if task.status in {"proposed", "ready", "active"}:
+                    warnings.extend(limit_warnings(task, policy))
     if args.canaries:
         problems.extend(validate_canaries(_repo(), policy))
     if problems:
         for problem in problems:
             print(f"FAIL {problem}")
         raise SystemExit(1)
+    for warning in warnings:
+        print(f"WARN {warning}")
     print("tasks valid")
 
 

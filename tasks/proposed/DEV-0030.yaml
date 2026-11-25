@@ -1,0 +1,33 @@
+id: DEV-0030
+title: Turn a confirmed finding into a proposed task
+status: proposed
+risk: 2
+priority: 55
+created: '2026-11-24'
+goal: '`econ findings task <id> --kind bug` writes a proposed contract with source
+  kind bug into tasks/proposed for a confirmed finding, using the next free id and
+  leaving acceptance and scope for the human to review. It refuses unconfirmed findings
+  and never promotes. `--kind spec` records the finding as input for the next model
+  card without touching specs/.'
+acceptance:
+- python -m pytest tests/test_findings_task.py -q
+scope:
+  allow:
+  - src/econ/findings.py
+  - src/econ/cli.py
+  - tests/test_findings_task.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: Depends on DEV-0029. The generated contract must pass task validation; use
+  a placeholder test path under tests/. Do not edit src/econ/dev/**. Tests use a
+  temporary repo root.

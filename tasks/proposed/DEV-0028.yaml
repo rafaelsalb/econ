@@ -1,0 +1,35 @@
+id: DEV-0028
+title: Have critics record findings before seeing mechanical ones
+status: proposed
+risk: 3
+priority: 60
+created: '2026-11-24'
+goal: Each advisory critic runs in two phases. Phase one has no defects.json and
+  saves its own findings. Phase two receives those findings plus the redacted mechanical
+  defects and marks each as new, confirming or disputing. Both outputs are kept.
+acceptance:
+- python -m pytest tests/test_advisory_two_phase.py -q
+- python -m econ.cli agents check
+scope:
+  allow:
+  - src/econ/loop.py
+  - config/prompts/critic_*.md
+  - .opencode/agents/econ-critic_*.md
+  - tests/test_advisory_two_phase.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 10
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Run after DEV-0019, which lets the implementer render research agents. Never
+  hand-edit rendered files: run `python -m econ.cli agents render`. Depends on DEV-0020,
+  DEV-0024 and DEV-0025. Doubles critic model calls. Risk 3: touches src/econ/loop.py,
+  so a human signs off. Tests must stub run_agent and never run a saving backtest,
+  open the lockbox, or write to registry/.'

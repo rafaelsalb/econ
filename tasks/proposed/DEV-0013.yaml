@@ -1,0 +1,106 @@
+id: DEV-0013
+title: Add the local OpenCode client for the dev-pm authoring session
+status: proposed
+risk: 2
+priority: 40
+created: '2026-11-24'
+goal: |
+  Add `src/econ/webui/opencode.py`, a small client for the local OpenCode V2
+  HTTP API. It is the only network boundary in the console and it exists so
+  the authoring chat can run the real `dev-pm` agent, including its `question`
+  forms, without changing the agent prompt or permissions.
+
+  Service discovery: `discover_service()` returns `(base_url, password)`.
+  `ECON_OPENCODE_URL` and `ECON_OPENCODE_PASSWORD` win when set. Otherwise the
+  URL comes from the first `http://` line printed by
+  `opencode service status` (fixed argv, no shell, 10 second timeout), and the
+  password comes from `ECON_OPENCODE_SERVICE_FILE` or
+  `~/.config/opencode/service.json` (the `password` key). A missing service or
+  file raises `OpenCodeUnavailable` with an actionable message. Never include
+  the password in an exception, log line, or `repr`.
+
+  `OpenCodeClient(base_url, password, repo, *, transport=None, timeout=30.0)`
+  uses `httpx.Client` with Basic auth `("opencode", password)` and exposes:
+
+  - `session(session_id)` -> the `data` object from `GET /api/session/{id}`;
+  - `create_session(title="Authoring")` -> the new session id, posting
+    `{"location": {"directory": str(repo)}, "agent": "dev-pm", "title": title}`
+    to `POST /api/session`; do not send a `permissions` or `model` override;
+  - `prompt(session_id, text)` -> `POST /api/session/{id}/prompt` with
+    `{"text": text, "resume": true, "delivery": "queue"}`;
+  - `messages(session_id)` -> the `data` list from
+    `GET /api/session/{id}/message`;
+  - `forms(session_id)` -> the `data` list from `GET /api/session/{id}/form`;
+  - `reply_form(session_id, form_id, answer)` ->
+    `POST /api/session/{id}/form/{form_id}/reply` with `{"answer": answer}`,
+    where `answer` is a mapping of field key to string, number, boolean, or
+    string list;
+  - `permissions(session_id)` -> the `data` list from
+    `GET /api/session/{id}/permission`;
+  - `reply_permission(session_id, request_id, decision)` ->
+    `POST /api/session/{id}/permission/{request_id}/reply` with
+    `{"decision": decision}`, where decision is `once`, `always`, or `reject`;
+  - `interrupt(session_id)` -> `POST /api/session/{id}/interrupt`;
+  - `events(session_id)` -> an iterator over `GET /api/event` SSE lines,
+    decoding each `data:` JSON object and yielding only events for the
+    requested session. Match `data.sessionID` for ordinary events and
+    `data.form.sessionID` for `form.created`/`form.replied`; ignore comments,
+    heartbeats, non-JSON lines, and other sessions. The stream is volatile:
+    callers must re-fetch messages after a reconnect instead of assuming
+    every event was delivered.
+
+  Non-2xx responses raise `OpenCodeUnavailable` with the method, path, and
+  status only; do not echo a response body or headers. Define an
+  `OpenCodeAPI` protocol with these methods so the chat layer can be tested
+  with a fake client. No routes, templates, or writes in this slice.
+acceptance:
+  - python -m pytest tests/test_webui_opencode.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/opencode.py
+    - tests/test_webui_opencode.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 2
+  max_diff_lines: 320
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run only after the console shell has merged; this module is independent of
+  the pipeline and can land before DEV-0014.
+
+  `httpx` is already a declared dependency; do not edit `pyproject.toml`. The
+  OpenCode V2 API is documented at `https://opencode.ai/docs/api`; the local
+  server prints its URL with `opencode service status`, and the service file
+  is mode 0600. Do not start, stop, or restart the service from this module.
+  Do not pass the password to a subprocess, a template, or an exception.
+
+  Tests must use `httpx.MockTransport`, not a real socket. Cover: Basic auth
+  header, the exact create-session body including the repo location and
+  `dev-pm`, the prompt body, message/list shapes, form reply, permission
+  reply, interrupt, an SSE stream with one matching and one foreign session,
+  a `form.created` event whose session id is nested under `data.form`, a 401
+  that raises without the password in the message, env overrides, the
+  service-file fallback, and a missing-service error. Assert `repr(client)`
+  never contains the password.
+
+  Keep this module free of FastAPI and Jinja imports so it can be tested and
+  reused without the web app.

@@ -16,6 +16,12 @@ class GitError(RuntimeError):
     pass
 
 
+# Runtime state that must not block a fast-forward merge. Task status
+# transitions move files under tasks/; canary proposals are generated as
+# untracked files and are inert until a human curates and promotes them.
+MERGE_IGNORE_PREFIXES = ("tasks/", "dev/evals/canary/proposed/")
+
+
 def git(
     args: list[str],
     cwd: Path,
@@ -54,7 +60,9 @@ def current_branch(repo: Path) -> str:
 
 
 def dirty_paths(repo: Path) -> list[str]:
-    out = git(["status", "--porcelain"], repo).stdout
+    # List individual untracked files, not a collapsed parent directory, so
+    # ignore prefixes can match runtime artifacts inside a new tree.
+    out = git(["status", "--porcelain", "--untracked-files=all"], repo).stdout
     paths = []
     for line in out.splitlines():
         if not line.strip():
@@ -281,16 +289,16 @@ class Worktree:
 def checkout_main(repo: Path, branch: str = "main") -> None:
     if current_branch(repo) == branch:
         return
-    if not is_clean(repo, ignore_prefixes=("tasks/",)):
+    if not is_clean(repo, ignore_prefixes=MERGE_IGNORE_PREFIXES):
         raise GitError(f"cannot checkout {branch}: repository is dirty")
     git(["checkout", branch], repo)
 
 
 def merge_ff(repo: Path, branch: str, branch_name: str = "main") -> str:
     checkout_main(repo, branch_name)
-    # Task contracts are runtime state: status transitions move files between
-    # tasks/ subdirectories and must not block an unrelated fast-forward merge.
-    if not is_clean(repo, ignore_prefixes=("tasks/",)):
+    # Task contracts and proposed canaries are runtime state: they must not
+    # block an unrelated fast-forward merge.
+    if not is_clean(repo, ignore_prefixes=MERGE_IGNORE_PREFIXES):
         raise GitError(f"cannot merge into {branch_name}: repository is dirty")
     git(["merge", "--ff-only", branch], repo)
     return rev_parse(repo, "HEAD")

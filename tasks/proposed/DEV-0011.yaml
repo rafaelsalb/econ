@@ -1,0 +1,95 @@
+id: DEV-0011
+title: Add CSRF-protected pause and promote controls
+status: proposed
+risk: 2
+priority: 60
+created: '2026-11-24'
+goal: |
+  Add the first mutations to the console, with the security controls they
+  require. This slice covers pause, resume, and promote only; running tasks and
+  the daemon are follow-up contracts.
+
+  `src/econ/webui/actions.py` owns `pause(repo, reason)`, `resume(repo)`,
+  `promote(repo, task_id)`, `audit(repo, action, **fields)`, and
+  `require_csrf(request)`. Pause writes `runs/dev/PAUSED` with the reason;
+  resume removes it. Promote calls `promote_task(TaskStore(repo), task_id,
+  load_policy(repo))` and leaves the task in `tasks/proposed/` when validation
+  fails. Every mutation appends one JSON line to `runs/dev/web/audit.jsonl`
+  with `ts`, `action`, `task_id`, `result`, and a short detail; never log a
+  message body or a secret.
+
+  Security: every POST requires a CSRF token from the page and a
+  SameSite=Strict cookie. A missing or wrong token is 403. Add
+  `TrustedHostMiddleware` for loopback hosts. `create_console_app` accepts an
+  `allowed_hosts` tuple; its default also includes `testserver` so TestClient
+  works, while `cmd_console` passes the bound loopback host and `localhost`
+  only. `econ console` refuses a non-loopback `--host` with a clear message;
+  remote access is a later contract. Do not add a password or user model. The
+  token is generated once per app and rendered into the forms; a GET may set
+  the cookie but must not change the repository.
+
+  The overview gains pause/resume controls with a reason field. The task detail
+  page gains a `Promote to ready` button for a proposed task, showing the
+  validation output; a successful promote redirects to the ready task with a
+  notice, and an invalid contract re-renders the page with the problems and
+  leaves the file untouched. Only ids matching `TASK_ID_RE` are accepted.
+  Risk 3 contracts may be promoted; running them remains a human CLI action in
+  DEV-0017, so say that on the page.
+
+  Do not use `shell=True`, do not spawn a subprocess, and do not call
+  `DevPipeline`. GETs remain side-effect free; the only writes are `PAUSED`,
+  promoted task YAML under `tasks/**`, `runs/dev/web/audit.jsonl`, and the CSRF
+  cookie.
+acceptance:
+  - python -m pytest tests/test_webui_actions.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/actions.py
+    - src/econ/cli.py
+    - src/econ/templates/console/overview.html
+    - src/econ/templates/console/task.html
+    - tests/webui_support.py
+    - tests/test_webui_actions.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 7
+  max_diff_lines: 340
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run after DEV-0008 has merged; the task detail template is the promote
+  surface. DEV-0017 adds `jobs.py`, run/tick, and the lock-aware supervisor;
+  DEV-0012 adds the daemon. Do not build those here.
+
+  Promotion is a human handoff, so the button must be an explicit click and
+  the page must show the validation evidence. The web process is not allowed
+  to bypass `promote_task` or write a task YAML directly. Risk 3 promotion is
+  allowed because the controller still refuses to run it without human
+  sign-off; the run button is the thing that must stay gated.
+
+  Tests must cover: pause/resume, promote success (file moves to ready),
+  promote validation failure (file stays proposed), an unknown id, a traversal
+  id, CSRF missing/wrong 403, a bad Host header, non-loopback `--host`
+  refusal, the audit line shape, and a before/after snapshot proving GETs do
+  not write. Also assert the app's route table contains no lockbox,
+  `score --lockbox`, ingest, release, or arbitrary-command endpoint. Do not
+  start a server; use TestClient.

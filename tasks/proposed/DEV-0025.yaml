@@ -1,0 +1,30 @@
+id: DEV-0025
+title: Validate critic results in the advisory loop
+status: proposed
+risk: 3
+priority: 76
+created: '2026-11-24'
+goal: The advisory loop checks each critic's result.json with the finding validator.
+  A malformed or missing result is recorded in the advisory summary with a distinct
+  status and the problems found, and never affects the mechanical decision.
+acceptance:
+- python -m pytest tests/test_advisory_validation.py -q
+scope:
+  allow:
+  - src/econ/loop.py
+  - tests/test_advisory_validation.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 8
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Depends on DEV-0024. Risk 3: touches src/econ/loop.py, so a human signs
+  off. Tests must stub run_agent and never run a saving backtest, open the lockbox,
+  or write to registry/.'

@@ -1,0 +1,31 @@
+id: DEV-0029
+title: Add an append-only ledger for research findings
+status: proposed
+risk: 2
+priority: 65
+created: '2026-11-24'
+goal: '`econ findings add`, `list` and `decide` keep validated findings in findings/ledger.jsonl.
+  A decision is confirmed, rejected or deferred with a reason, is appended as a
+  new line, and earlier lines are never rewritten. `add` imports a critic result.json
+  and refuses invalid ones.'
+acceptance:
+- python -m pytest tests/test_findings_ledger.py -q
+scope:
+  allow:
+  - src/econ/findings.py
+  - src/econ/cli.py
+  - tests/test_findings_ledger.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 9
+  max_diff_lines: 400
+source:
+  kind: local
+notes: Depends on DEV-0024. Tests use a temporary ledger path. Decisions are made
+  by a human; no agent or loop calls `decide`.

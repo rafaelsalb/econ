@@ -1,0 +1,34 @@
+id: DEV-0024
+title: Add a checkable finding schema for research agents
+status: proposed
+risk: 2
+priority: 78
+created: '2026-11-24'
+goal: A new module src/econ/findings.py validates critic results. Each defect needs
+  an id, a code D1-D7, a severity, a claim, a file and line (or the input file it
+  refers to) and a way to check it. The validator returns readable problems and
+  never raises on malformed input. Both critic prompts ask for this shape.
+acceptance:
+- python -m pytest tests/test_findings_schema.py -q
+- python -m econ.cli agents check
+scope:
+  allow:
+  - src/econ/findings.py
+  - config/prompts/critic_*.md
+  - .opencode/agents/econ-critic_*.md
+  - tests/test_findings_schema.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 10
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Run after DEV-0019, which lets the implementer render research agents. Never
+  hand-edit rendered files: run `python -m econ.cli agents render`. Use pydantic
+  or dataclasses already available; no new dependency.'

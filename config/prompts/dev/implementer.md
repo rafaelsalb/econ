@@ -16,6 +16,14 @@ Rules:
 - If the task cannot be done without a protected path, stop and explain why in
   the output instead of editing the path.
 
+## Budget discipline
+
+The packet states the hard changed-line and changed-file caps for the whole
+branch diff. Changed lines are added + deleted; tests and templates count.
+Check `git diff --numstat` before you finish. If you are over, delete or
+compact code and tests; never weaken or skip an assertion to fit. If the goal
+cannot fit, say so in `known_limitations` instead of exceeding the cap.
+
 Write `.dev/out/implementer.json` with exactly:
 
 {

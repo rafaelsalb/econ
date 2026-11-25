@@ -5,11 +5,13 @@ from dataclasses import replace
 from pathlib import Path
 
 from econ.agents import dev_agents, load_dev_config
-from econ.dev.pipeline import DevPipeline, step_limit_message
+from econ.dev.gates import GateReport, GateResult
+from econ.dev.models import limit_warnings
+from econ.dev.pipeline import DevPipeline, _gate_findings, step_limit_message
 from econ.dev.runner import FakeRunner
 from econ.dev.tasks import TaskStore
 
-from dev_support import add_task, default_policy, demo_task, make_repo, run_task
+from dev_support import add_task, default_policy, demo_task, git, make_repo, run_task
 
 
 class StepFakeRunner(FakeRunner):
@@ -31,6 +33,45 @@ class StepFakeRunner(FakeRunner):
         return result
 
 
+class PromptRecordingRunner(FakeRunner):
+    """FakeRunner that keeps every prompt so packet contents are testable."""
+
+    def __init__(self, repo: Path):
+        super().__init__(repo)
+        self.prompts: list[tuple[str, str]] = []
+
+    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+        self.prompts.append((role, prompt))
+        return super().run(
+            role, cwd, prompt, timeout=timeout, model_override=model_override
+        )
+
+
+class SizeRepairRunner(FakeRunner):
+    """Pad selected rounds over the size cap, then shrink again.
+
+    This reproduces the DEV-0003 shape: a review requests changes, the fix
+    grows the diff over the cap, and the controller must spend a repair
+    attempt without losing the second review.
+    """
+
+    def __init__(self, repo: Path, *, pad_rounds: tuple[int, ...] = (2,)):
+        super().__init__(repo)
+        self.pad_rounds = pad_rounds
+
+    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+        result = super().run(
+            role, cwd, prompt, timeout=timeout, model_override=model_override
+        )
+        if role == "implementer" and self._round(cwd) in self.pad_rounds:
+            target = cwd / "src" / "econ" / "feature.py"
+            target.write_text(
+                target.read_text()
+                + "".join(f"# padding line {n}\n" for n in range(40))
+            )
+        return result
+
+
 def test_pipeline_merges_a_clean_task(tmp_path):
     repo = make_repo(tmp_path / "repo")
     add_task(repo, demo_task())
@@ -38,13 +79,16 @@ def test_pipeline_merges_a_clean_task(tmp_path):
     assert outcome.status == "done", outcome.decision
     assert (repo / "src" / "econ" / "feature.py").exists()
     assert (repo / "tests" / "test_feature.py").exists()
-    decision = json.loads((repo / "runs" / "dev" / "tasks" / "DEV-0001" / "decision.json").read_text())
+    run_dir = repo / "runs" / "dev" / "tasks" / "DEV-0001"
+    decision = json.loads((run_dir / "decision.json").read_text())
     assert decision["merged_commit"]
     assert decision["status"] == "done"
+    state = json.loads((run_dir / "state.json").read_text())
+    assert state["status"] == "done"
     assert (repo / "tasks" / "done" / "DEV-0001.yaml").exists()
     assert not (repo / "tasks" / "ready" / "DEV-0001.yaml").exists()
-    assert (repo / "runs" / "dev" / "tasks" / "DEV-0001" / "gates-pre.json").exists()
-    assert (repo / "runs" / "dev" / "tasks" / "DEV-0001" / "gates-post.json").exists()
+    assert (run_dir / "gates-pre.json").exists()
+    assert (run_dir / "gates-post.json").exists()
 
 
 def test_shadow_mode_records_without_merging(tmp_path):
@@ -62,8 +106,151 @@ def test_review_loop_requests_one_revision_then_approves(tmp_path):
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "done", outcome.decision
     assert outcome.rounds == 2
+    assert outcome.decision["review_rounds"] == 2
     events = (repo / "runs" / "dev" / "tasks" / "DEV-0001" / "events.jsonl").read_text()
     assert '"round": 2' in events
+    assert (repo / "src" / "econ" / "feature.py").exists()
+
+
+def test_pre_gate_failure_does_not_consume_the_second_review(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task(risk=2, fail_first_rounds=1).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 30}
+        )}
+    )
+    add_task(repo, task)
+    outcome = run_task(repo, "DEV-0001", runner=SizeRepairRunner(repo))
+    assert outcome.status == "done", outcome.decision
+    # Round 1 review rejects, round 2 exceeds the size cap, round 3 is the
+    # repair and earns the second review.
+    assert outcome.rounds == 3
+    assert outcome.decision["review_rounds"] == 2
+    assert len(outcome.reviews) == 2
+    assert all(review["verdict"] == "approve" for review in outcome.reviews)
+
+
+def test_attempt_budget_stops_before_a_third_review(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task(risk=2, fail_first_rounds=99).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 30}
+        )}
+    )
+    add_task(repo, task)
+    # Two mechanical repairs, then the first review rejects on the last
+    # attempt: the loop must escalate, not fall off the end into a failed run.
+    outcome = run_task(
+        repo,
+        "DEV-0001",
+        runner=SizeRepairRunner(repo, pad_rounds=(1, 2)),
+    )
+    assert outcome.status == "escalated", outcome.decision
+    assert "1 review round(s) and 3 attempt(s)" in outcome.decision["reason"]
+
+
+def test_size_escalation_preserves_rounds_commit_and_state(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task(risk=2, fail_first_rounds=99).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 1}
+        )}
+    )
+    add_task(repo, task)
+    outcome = run_task(repo, "DEV-0001")
+    assert outcome.status == "escalated", outcome.decision
+    assert outcome.rounds == 3
+    assert outcome.commit is not None
+    assert outcome.reviews == []
+    run_dir = repo / "runs" / "dev" / "tasks" / "DEV-0001"
+    decision = json.loads((run_dir / "decision.json").read_text())
+    assert decision["rounds"] == 3
+    assert decision["commit"] == outcome.commit
+    assert "pre gates did not pass after 3 attempt(s)" in decision["reason"]
+    assert "0/2 review round(s) used" in decision["reason"]
+    assert decision["findings"][0]["gate"] == "size"
+    assert "remove at least" in decision["findings"][0]["suggestion"]
+    state = json.loads((run_dir / "state.json").read_text())
+    assert state["status"] == "escalated"
+    assert state["round"] == 3
+    # A contract-size overrun is calibration, not a canary.
+    proposed = repo / "dev" / "evals" / "canary" / "proposed"
+    assert not proposed.exists() or list(proposed.glob("*.yaml")) == []
+
+
+def test_implementer_and_reviewer_packets_state_the_diff_budget(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task(risk=2).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 37}
+        )}
+    )
+    add_task(repo, task)
+    runner = PromptRecordingRunner(repo)
+    outcome = run_task(repo, "DEV-0001", runner=runner)
+    assert outcome.status == "done", outcome.decision
+    implementer = [prompt for role, prompt in runner.prompts if role == "implementer"]
+    reviewer = [prompt for role, prompt in runner.prompts if role == "reviewer"]
+    assert implementer and "Diff budget" in implementer[0]
+    assert "changed lines" in implementer[0]
+    assert "37" in implementer[0]
+    assert reviewer and "Diff budget" in reviewer[0]
+    assert "remaining budget" in reviewer[0]
+
+
+def test_gate_findings_name_the_size_overage():
+    report = GateReport(stage="pre")
+    report.add(
+        GateResult(
+            "size",
+            False,
+            "364 changed lines > 320",
+            evidence={"lines": 364, "over_lines": 44, "over_files": 0},
+        )
+    )
+    findings = _gate_findings(report)
+    assert findings[0]["gate"] == "size"
+    assert "44 changed line(s)" in findings[0]["suggestion"]
+    assert "split the task" in findings[0]["suggestion"]
+
+
+def test_limit_warnings_flag_tight_risk_two_contracts():
+    policy = default_policy()
+    task = demo_task(risk=2).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 320, "max_changed_files": 2}
+        )}
+    )
+    warnings = limit_warnings(task, policy)
+    assert any("max_diff_lines=320" in warning for warning in warnings)
+    assert any("max_changed_files=2" in warning for warning in warnings)
+
+    small = demo_task(risk=1).model_copy(
+        update={"limits": demo_task().limits.model_copy(
+            update={"max_diff_lines": 100}
+        )}
+    )
+    assert not any(
+        "max_diff_lines" in warning for warning in limit_warnings(small, policy)
+    )
+
+
+def test_untracked_canary_proposal_does_not_block_merge(tmp_path):
+    from econ.dev.workspace import merge_ff
+
+    repo = make_repo(tmp_path / "repo")
+    git(["checkout", "-q", "-b", "dev/feature"], repo)
+    (repo / "src" / "econ" / "feature.py").write_text("VALUE = 1\n")
+    git(["add", "-A"], repo)
+    git(["commit", "-q", "-m", "feature"], repo)
+    git(["checkout", "-q", "main"], repo)
+
+    proposed = repo / "dev" / "evals" / "canary" / "proposed"
+    proposed.mkdir(parents=True)
+    (proposed / "CANARY-999.yaml").write_text("id: CANARY-999\n")
+
+    merged = merge_ff(repo, "dev/feature", "main")
+    assert merged
     assert (repo / "src" / "econ" / "feature.py").exists()
 
 
@@ -149,6 +336,18 @@ def test_always_rejecting_reviewer_escalates_after_budget(tmp_path):
     outcome = run_task(repo, "DEV-0001")
     assert outcome.status == "escalated"
     assert "review requested changes" in outcome.decision["reason"]
+    # The terminal evidence must survive the escalation, not reset to zero.
+    assert outcome.rounds == 2
+    assert outcome.commit is not None
+    assert outcome.reviews
+    run_dir = repo / "runs" / "dev" / "tasks" / "DEV-0001"
+    state = json.loads((run_dir / "state.json").read_text())
+    assert state["status"] == "escalated"
+    assert state["round"] == 2
+    decision = json.loads((run_dir / "decision.json").read_text())
+    assert decision["rounds"] == 2
+    assert decision["commit"] == outcome.commit
+    assert decision["reviews"]
 
 
 def test_verifier_failure_escalates(tmp_path):

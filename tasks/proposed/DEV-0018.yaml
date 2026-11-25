@@ -1,0 +1,90 @@
+id: DEV-0018
+title: Add chat question forms, permission requests, and live streaming
+status: proposed
+risk: 2
+priority: 25
+created: '2026-11-24'
+goal: |
+  Complete the authoring chat from DEV-0014 with the interactive parts of the
+  real `dev-pm` interview.
+
+  Forms: render string, number, integer, boolean, and multiselect fields with
+  their title, description, options, default, and required flag. Boolean
+  fields send `0` when unchecked; multiselect sends repeated values. On
+  submit, build the `Form.Answer` mapping (field key -> string, number,
+  boolean, or string list) and call `client.reply_form`. A missing required
+  field is a 400 that re-renders the form; an unknown form id is 404. Render
+  `external` fields as a plain text input with a warning, since the browser
+  cannot fulfill the external flow. The PM's `question` tool maps to an
+  OpenCode form, so do not change the prompt or add a second question UI.
+
+  Permissions: render `permission.asked` requests with their action,
+  resources, and message, and three explicit buttons: `once`, `always`,
+  `reject`. On page load, also fetch pending permissions from
+  `client.permissions(session_id)` so a missed event does not hide a request.
+  Nothing is auto-approved. The PM session keeps the agent's own rules; do not
+  pass a permission override when creating it.
+
+  Streaming: `GET /chat/events` opens `client.events(session_id)` and emits
+  Server-Sent Events. `session.text.delta` appends `data.delta` to the current
+  assistant bubble; `form.created`, `permission.asked`, `session.execution.failed`,
+  and `session.idle` trigger a page reload so forms and the final transcript
+  come from the authoritative `messages` endpoint. With `once=1`, return a
+  JSON list containing at most one event for tests instead of a stream; do
+  not wait for more. Reconnect after a dropped stream by re-fetching messages;
+  do not assume the volatile event stream is complete.
+
+  All POSTs use the DEV-0011 CSRF check. The page escapes every message, form
+  label, option, permission resource, and proposed-task field. A `<script>` in
+  model output must not execute. No merge, promote, lockbox, model selector,
+  or generic agent chat lives on this page.
+acceptance:
+  - python -m pytest tests/test_webui_chat_forms.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/chat.py
+    - src/econ/templates/console/chat.html
+    - tests/webui_support.py
+    - tests/test_webui_chat_forms.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 5
+  max_diff_lines: 360
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run only after DEV-0014 has merged. This slice adds forms, permissions, and
+  streaming to the existing chat service and template; it must not duplicate
+  the session store, transcript normalizer, or proposed-task sidebar.
+
+  Tests always inject a fake `OpenCodeAPI`; never use the real service or
+  spend credits. Cover: a form with string and multiselect fields, a missing
+  required field 400, an unknown form 404, boolean false, a pending permission
+  rendered on page load as well as from an event, a permission card with three
+  decisions, interrupt, `once=1` returning at most one event with a foreign
+  session filtered out, a text-delta event, and an escaped `<script>` in a
+  form label or option. Assert the page has no auto-approve path and that a
+  POST without the CSRF token is 403.
+
+  The event stream is volatile; the browser reload on `session.idle` is the
+  resynchronization mechanism. Keep the JS inline and small; no frontend
+  framework or new dependency.

@@ -1,0 +1,70 @@
+id: DEV-0015
+title: Document the development console and its safety boundary
+status: proposed
+risk: 0
+priority: 20
+created: '2026-11-24'
+goal: |
+  Document the console series in `README.md` and `docs/DEV_TEAM.md`.
+
+  In `README.md`, add a "Development console" section after the multi-agent
+  development team section. It must cover: the `econ console` command and
+  its default `127.0.0.1:8100` bind; the pages (`/`, `/tasks`,
+  `/tasks/{id}`, `/runs/{id}`, `/chat`); the control actions (pause/resume,
+  promote, shadow run, confirmed real run, one scheduler tick, daemon
+  start/stop); the authoring loop from a chat request to a proposed contract,
+  promotion, and a run; and the fact that the console is a control plane
+  over the existing CLI, not a second controller.
+
+  In `docs/DEV_TEAM.md`, add an "Operating the console" subsection with the
+  contract order DEV-0007 through DEV-0018, including the split slices
+  DEV-0016 (overview data), DEV-0017 (job supervisor), and DEV-0018 (chat
+  forms and streaming); the read-only versus mutation split, the job/audit
+  files under `runs/dev/web/`, and the safety boundary:
+  loopback-only, CSRF on POSTs, no arbitrary shell, no lockbox or
+  `score --lockbox` route, risk 3 remains CLI-only for human sign-off, and
+  there is no approve/merge button. Document that the authoring chat uses
+  the local OpenCode V2 service and the unchanged `dev-pm` agent, and that
+  pipeline role transcripts appear after each role call because the runner
+  captures stdout.
+
+  Do not document a feature that the contracts do not deliver. Do not add
+  screenshots or external assets. The docs must not imply that the console
+  opens the lockbox, changes gates, or promotes automatically.
+acceptance:
+  - python -m econ.cli check
+scope:
+  allow:
+    - README.md
+    - docs/DEV_TEAM.md
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/**
+    - .github/**
+    - tests/**
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 2
+  max_diff_lines: 160
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run after the console behavior has merged so the docs describe the shipped
+  command, routes, and files rather than the proposal. This is a risk 0 docs
+  contract: no code, no tests, no protected paths.
+
+  Keep the wording consistent with the existing README's agent sections and
+  `docs/DEV_TEAM.md`'s deterministic-controller framing. The key sentence to
+  preserve: the controller and the mechanical gates decide whether work
+  advances; the console only starts the same commands a human would type.

@@ -1,0 +1,87 @@
+id: DEV-0016
+title: Add the read-only overview data to the console
+status: proposed
+risk: 2
+priority: 95
+created: '2026-11-24'
+goal: |
+  Fill the console overview from the repository, read-only.
+
+  `src/econ/webui/readmodels.py` reads the repo without writing: the pause file
+  and reason, `.daemon.lock`, `runs/dev/budget.json`, `tasks/ready/*.yaml`,
+  `runs/dev/index.jsonl`, and `runs/dev/canaries/latest.json`. It must not call
+  `TaskStore.ensure()`, `BudgetLedger`, `DevScheduler`, or any helper that
+  creates directories or rewrites files on load, and it must not import or
+  execute `DevPipeline`. Read task YAML with `yaml.safe_load`, validate with
+  `Task.model_validate` plus `validate_task(task, load_policy(repo))`, and
+  report a bad file on the page instead of raising.
+
+  `/` shows the pause state and reason, the lock holder and whether it is
+  stale, today's budget (spent, daily, remaining; a budget file from an older
+  date reads as zero without writing), the ready queue in scheduler order
+  (`-priority`, `risk`, `created`, `id`), the canary pass/total, and the last
+  15 outcomes from `index.jsonl` with status, risk, rounds, reason, and cost.
+  A missing `runs/dev/` renders an empty page with 200. The static landing
+  text from DEV-0007 is replaced by these cards.
+
+  Every GET must be side-effect free: snapshotting a temp repository before
+  and after a request must produce identical paths and bytes. Jinja
+  autoescaping stays on; a `<script>` in a task title, lock payload, or
+  outcome reason must render escaped. A truncated final line in `index.jsonl`
+  is skipped, not a 500.
+
+  Add `tests/webui_support.py` with a reusable temp-repo fixture that creates
+  `tasks/{proposed,ready,active,done,escalated,failed}/`, an optional
+  `config/dev_policy.yaml`, and `runs/dev/` artifacts. Later slices extend this
+  fixture; tests must never depend on the checkout's `tasks/` or `runs/dev/`.
+  Add `tests/test_webui_overview.py` for the cards, the stale budget and lock
+  cases, queue order, canary counts, malformed index lines, HTML escaping,
+  and the before/after snapshot.
+acceptance:
+  - python -m pytest tests/test_webui_overview.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/readmodels.py
+    - src/econ/templates/console/overview.html
+    - tests/webui_support.py
+    - tests/test_webui_overview.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 5
+  max_diff_lines: 400
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run after DEV-0007 has merged. This is the read-only data half of the
+  original shell slice, split so the 400-line risk-2 cap is realistic once the
+  fixture and tests are counted.
+
+  `TaskStore.load_path()` validates a task but `TaskStore.load()` and
+  `TaskStore.paths()` call `ensure()`, which creates directories. Do not use
+  them on a GET; glob the status directories directly. `BudgetLedger._load()`
+  rewrites `budget.json` when the date changes; read the JSON and treat a
+  stale date as zero without writing. `DevScheduler.status()` constructs a
+  `BudgetLedger` and is not a pure read.
+
+  Keep the overview helpers small: `read_budget`, `read_lock`, `read_index`,
+  `read_canaries`, `ready_queue`, and `validate_task_files`. DEV-0008 and
+  later will import these.

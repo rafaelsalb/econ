@@ -1,0 +1,29 @@
+id: DEV-0034
+title: Keep lockbox results out of research agent inputs
+status: proposed
+risk: 2
+priority: 88
+created: '2026-11-24'
+goal: project_workspace refuses any input that is, or contains, a file under registry/,
+  eval/ or reports/, or docs/STATUS.md or docs/METHOD.md, since these report lockbox
+  results. The error names the path. Current advisory loop inputs still work.
+acceptance:
+- python -m pytest tests/test_sandbox_lockbox_inputs.py -q
+scope:
+  allow:
+  - src/econ/sandbox.py
+  - tests/test_sandbox_lockbox_inputs.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 8
+  max_diff_lines: 400
+source:
+  kind: local
+notes: Check resolved paths, including directories and symlinks. Never read or open
+  the lockbox in tests.

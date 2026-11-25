@@ -1,0 +1,84 @@
+id: DEV-0012
+title: Add the daemon supervisor for start, stop, and adoption
+status: proposed
+risk: 2
+priority: 50
+created: '2026-11-24'
+goal: |
+  Let the console start and stop the autonomous scheduler without turning the
+  web process into the scheduler.
+
+  `src/econ/webui/jobs.py` gains `DaemonSupervisor(repo, *, popen=None,
+  clock=None)` and `runs/dev/web/daemon.json`. Start validates that no live
+  daemon lock is held, then launches
+  `[sys.executable, "-m", "econ.cli", "dev", "daemon", "--sleep", N]` plus
+  `--sync` and `--max-parallel` when requested, with `start_new_session=True`,
+  stdout/stderr appended to `runs/dev/web/daemon.log`, and the pid, argv, and
+  started_at written to `daemon.json`. Sleep defaults to 60 seconds and
+  max-parallel to 1; do not expose the daily budget, which is policy-owned.
+
+  Stop sends SIGTERM to the owned process group, waits up to 10 seconds, and
+  reports success only when the pid is gone; a timeout returns 409 with the
+  pid and a "still running" message. Never SIGKILL in this slice.
+
+  Adoption: on app creation and on status refresh, if `daemon.json` exists and
+  its pid is alive and it was started by the console, show `running` and allow
+  stop. If `.daemon.lock` names a live pid that the console did not start,
+  show `external (pid N)` and disable stop; the operator must use the CLI.
+  If the owned pid is dead, mark it `stopped`. Do not start a daemon on import
+  or on a GET.
+
+  The overview gains a daemon card with state, pid, uptime, last tick from
+  `runs/dev/daemon.json`, and start/stop controls. Starting while paused is
+  allowed (the daemon respects the pause switch); starting while the lock is
+  held is a 409. All actions require the DEV-0011 CSRF token and append to the
+  audit log.
+acceptance:
+  - python -m pytest tests/test_webui_daemon.py -q
+  - python -m econ.cli check
+scope:
+  allow:
+    - src/econ/webui/app.py
+    - src/econ/webui/jobs.py
+    - src/econ/templates/console/overview.html
+    - tests/webui_support.py
+    - tests/test_webui_daemon.py
+  deny:
+    - specs/**
+    - data/**
+    - registry/**
+    - eval/**
+    - sandbox/**
+    - reports/**
+    - config/**
+    - src/econ/dev/**
+    - src/econ/web.py
+    - .github/**
+    - tests/dev_support.py
+    - tasks/**
+    - dev/evals/canary/**
+    - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 5
+  max_diff_lines: 350
+  wall_seconds: 2400
+source:
+  kind: local
+notes: |
+  Run only after DEV-0011 and DEV-0017 have merged: reuse the CSRF helper,
+  audit writer, and `JobSupervisor` conventions. Do not add a second lock
+  mechanism; the daemon's own `FileLock` on `runs/dev/.daemon.lock` remains
+  the referee.
+
+  The web process must survive a restart with a daemon still running. On load,
+  `DaemonSupervisor.status()` reads `daemon.json` and the lock; it never calls
+  `DevScheduler` or `BudgetLedger`, and it never writes on a GET. A daemon
+  started outside the console is external and must not be stopped from the web.
+
+  Tests must inject a fake `Popen`, fake `pid_alive`, and fake `os.killpg`;
+  never start or kill a real process. Cover: start argv with and without
+  `--sync`/`--max-parallel`, start refused while the lock is held, stop success,
+  stop timeout, adoption of an owned live pid, an external live lock, a dead
+  owned pid, no write on a GET, and the audit line.

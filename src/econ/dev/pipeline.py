@@ -69,17 +69,58 @@ class Outcome:
 def _gate_findings(report: GateReport) -> list[dict]:
     out = []
     for gate in report.blocking_failures:
+        issue = f"gate {gate.name}: {gate.detail}"
+        suggestion = "fix the failing gate and resubmit"
+        if gate.name == "size":
+            over_lines = int(gate.evidence.get("over_lines") or 0)
+            over_files = int(gate.evidence.get("over_files") or 0)
+            over = " and ".join(
+                part
+                for part in (
+                    f"{over_lines} changed line(s)" if over_lines else "",
+                    f"{over_files} file(s)" if over_files else "",
+                )
+                if part
+            ) or "the contract budget"
+            suggestion = (
+                f"remove at least {over} from the branch diff; delete or "
+                "compact code and tests rather than weakening assertions. If "
+                "the goal cannot fit, split the task instead of raising the cap."
+            )
         out.append(
             {
                 "severity": "blocker",
                 "file": "",
                 "line": 0,
-                "issue": f"gate {gate.name}: {gate.detail}",
-                "suggestion": "fix the failing gate and resubmit",
+                "issue": issue,
+                "suggestion": suggestion,
                 "gate": gate.name,
             }
         )
     return out
+
+
+def _only_contract_size_failure(findings: list[dict]) -> bool:
+    return bool(findings) and all(
+        item.get("gate") == "size" for item in findings
+    )
+
+
+def _is_budget_exhaustion(reason: str) -> bool:
+    """True when the run failed after its review/repair budget, not on policy.
+
+    Human-gate stops (dependency sign-off, protected path, coverage drop,
+    science-guard block) and "implementer produced no changes" are the system
+    working; they must not grow the canary suite.
+    """
+    return reason.startswith(
+        (
+            "review requested changes",
+            "verifier rejected the patch",
+            "pre gates did not pass",
+            "post gates did not pass",
+        )
+    )
 
 
 def _review_findings(payload: dict) -> list[dict]:
@@ -252,7 +293,9 @@ class DevPipeline:
         generates a proposed canary contract for a human to curate and
         promote. Policy escalations inside the budget (dependency sign-off,
         verifier verdicts on round one) are the system working and generate
-        nothing. Canary generation must never break the run it records.
+        nothing. A contract-size overrun is a calibration failure: it is
+        skipped because copying the same cap into a canary would reproduce
+        the escalation. Canary generation must never break the run it records.
         """
         from .canary import propose_canary_from_task
 
@@ -260,18 +303,22 @@ class DevPipeline:
             return
         if outcome.status not in {"failed", "escalated"}:
             return
-        max_rounds = min(
-            task.limits.max_review_rounds, self.policy.budget.max_review_rounds
-        )
-        state_round = int(artifacts.load_state().get("round") or 0)
-        if outcome.status != "failed" and state_round < max_rounds:
+        # A contract-size overrun is a calibration failure, not a model
+        # failure. Copying the same cap into a canary would reproduce the
+        # escalation instead of testing behavior.
+        findings = outcome.decision.get("findings") or []
+        if outcome.status == "escalated" and _only_contract_size_failure(findings):
             return
+        reason = str(outcome.decision.get("reason", ""))
+        if outcome.status != "failed" and not _is_budget_exhaustion(reason):
+            return
+        state_round = int(artifacts.load_state().get("round") or 0)
         try:
             path = propose_canary_from_task(
                 self.repo,
                 task,
                 status=outcome.status,
-                reason=str(outcome.decision.get("reason", "")),
+                reason=reason,
                 rounds=max(state_round, int(outcome.rounds or 0)),
             )
         except Exception as exc:  # noqa: BLE001
@@ -438,6 +485,35 @@ class DevPipeline:
                 limit=step["limit"],
             )
 
+    def _budget_section(self, worktree: Worktree, task: Task) -> str:
+        """Hard branch-diff budget, visible in the packet the agent reads.
+
+        DEV-0003 failed because a required review fix grew the diff from 314
+        to 364 lines against a 320-line cap, and neither the implementer nor
+        the reviewer was told how much headroom was left.
+        """
+        added, deleted = worktree.diff_numstat(worktree.base)
+        lines = added + deleted
+        changed = len(worktree.changed_files(worktree.base))
+        limit_lines = min(
+            task.limits.max_diff_lines, self.policy.gates.max_diff_lines
+        )
+        limit_files = min(
+            task.limits.max_changed_files, self.policy.gates.max_changed_files
+        )
+        remaining_lines = max(0, limit_lines - lines)
+        remaining_files = max(0, limit_files - changed)
+        return (
+            "Diff budget (hard caps for the whole branch diff from base):\n"
+            f"- changed lines (added + deleted, tests and templates count): "
+            f"{lines} / {limit_lines} ({remaining_lines} left)\n"
+            f"- changed files: {changed} / {limit_files} "
+            f"({remaining_files} left)\n"
+            "A fix that adds lines must keep the total under the cap. Delete "
+            "or compact existing code and tests; never weaken or skip an "
+            "assertion. If the goal cannot fit, say so instead of exceeding it."
+        )
+
     def _run_implementer(
         self,
         worktree: Worktree,
@@ -459,8 +535,11 @@ class DevPipeline:
             + "\nScope deny: "
             + (", ".join(task.scope.deny) or "(none)")
             + "\n\n"
+            + self._budget_section(worktree, task)
+            + "\n\n"
             "Read `.dev/task.yaml`, `.dev/packet.md`, and `.dev/findings.json`. "
-            "Apply the smallest patch. Do not touch protected paths."
+            "Apply the smallest patch that fits the budget. Do not touch "
+            "protected paths."
         )
         self._write_packet(worktree, task, packet, round_no=round_no)
         (worktree.path / ".dev" / "findings.json").write_text(
@@ -492,7 +571,12 @@ class DevPipeline:
             f"Task: {task.id} — {task.title}\n\n"
             "You did not write this patch. Review the diff against the task "
             "acceptance criteria and the test evidence. Return typed findings. "
-            "Do not edit source."
+            "Do not edit source.\n\n"
+            + self._budget_section(worktree, task)
+            + "\n\nA blocker or major finding that needs new code must fit "
+            "the remaining budget. If it cannot, state the size cost and "
+            "suggest a smaller fix or splitting the task; do not downgrade a "
+            "real finding."
         )
         self._write_packet(worktree, task, packet, round_no=round_no)
         self._prepare_review(worktree, task, artifacts)
@@ -671,13 +755,45 @@ class DevPipeline:
             gate_report: GateReport | None = None
             commit: str | None = None
             last_failure = ""
-            max_rounds = min(
+            max_reviews = min(
                 task.limits.max_review_rounds,
                 self.policy.budget.max_review_rounds,
             )
+            # A pre-gate failure is a mechanical repair, not a review. Give it
+            # its own bounded attempts so it cannot consume the second review.
+            max_attempts = max_reviews + self.policy.budget.max_repair_rounds
+            review_rounds = 0
             round_no = 0
-            for round_no in range(1, max_rounds + 1):
+
+            def stop(reason: str, *, findings: list[dict] | None = None) -> Outcome:
+                decision: dict = {"reason": reason}
+                if findings:
+                    decision["findings"] = findings
+                return self._escalate(
+                    task,
+                    artifacts,
+                    Outcome(
+                        task_id=task.id,
+                        status="escalated",
+                        decision=decision,
+                        run_dir=artifacts.run_dir,
+                        worktree=worktree.path,
+                        branch=worktree.branch,
+                        commit=commit,
+                        reviews=list(reviews),
+                        rounds=round_no,
+                        cost_usd=float(
+                            artifacts.cost().get("total_usd", 0.0)
+                        ),
+                    ),
+                    reason,
+                )
+
+            for round_no in range(1, max_attempts + 1):
                 artifacts.append_event("round_started", round=round_no)
+                artifacts.update_state(
+                    round=round_no, review_rounds=review_rounds
+                )
                 self._run_implementer(worktree, task, artifacts, round_no, findings)
                 commit = worktree.commit_all(
                     f"dev({task.id}): round {round_no} implementation"
@@ -693,20 +809,8 @@ class DevPipeline:
                     reason = "implementer produced no changes"
                     if last_failure:
                         reason += f"; previous failure: {last_failure}"
-                    if round_no >= max_rounds:
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={"reason": reason},
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                            ),
-                            reason,
-                        )
+                    if round_no >= max_attempts:
+                        return stop(reason)
                     continue
 
                 artifacts.write_text(
@@ -721,42 +825,27 @@ class DevPipeline:
                     reason = "gate requires human review: " + ", ".join(
                         g.name for g in gate_report.human_required
                     )
-                    return self._escalate(
-                        task,
-                        artifacts,
-                        Outcome(
-                            task_id=task.id,
-                            status="escalated",
-                            decision={"reason": reason},
-                            run_dir=artifacts.run_dir,
-                            worktree=worktree.path,
-                            branch=worktree.branch,
-                        ),
-                        reason,
-                    )
+                    return stop(reason)
                 if gate_report.blocking_failures:
                     findings = _gate_findings(gate_report)
                     last_failure = "pre gates failed: " + ", ".join(
                         g.name for g in gate_report.blocking_failures
                     )
                     artifacts.write_json("findings.json", findings)
-                    if round_no >= max_rounds:
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={"reason": "gates did not pass", "findings": findings},
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                            ),
-                            "gates did not pass after the review budget",
+                    if round_no >= max_attempts:
+                        names = ", ".join(
+                            g.name for g in gate_report.blocking_failures
+                        )
+                        return stop(
+                            f"pre gates did not pass after {round_no} "
+                            f"attempt(s) ({review_rounds}/{max_reviews} review "
+                            f"round(s) used): {names}",
+                            findings=findings,
                         )
                     continue
 
                 required_reviews = self.policy.auto_merge.reviewers.get(task.risk, 1)
+                review_rounds += 1
                 reviews = []
                 blocked = False
                 for index in range(required_reviews):
@@ -774,20 +863,14 @@ class DevPipeline:
                         blocked = True
                         break
                 if blocked:
-                    if round_no >= max_rounds:
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={"reason": "review requested changes", "findings": findings},
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                                reviews=reviews,
-                            ),
-                            "review requested changes after the review budget",
+                    if (
+                        review_rounds >= max_reviews
+                        or round_no >= max_attempts
+                    ):
+                        return stop(
+                            f"review requested changes after {review_rounds} "
+                            f"review round(s) and {round_no} attempt(s)",
+                            findings=findings,
                         )
                     continue
 
@@ -797,20 +880,15 @@ class DevPipeline:
                     findings = _review_findings(verifier)
                     artifacts.write_json("findings.json", findings)
                     last_failure = "verifier rejected the patch"
-                    if round_no >= max_rounds:
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={"reason": "verifier rejected the patch", "findings": findings},
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                                reviews=reviews,
-                            ),
-                            "verifier rejected the patch after the review budget",
+                    if (
+                        review_rounds >= max_reviews
+                        or round_no >= max_attempts
+                    ):
+                        return stop(
+                            f"verifier rejected the patch after "
+                            f"{review_rounds} review round(s) and "
+                            f"{round_no} attempt(s)",
+                            findings=findings,
                         )
                     continue
 
@@ -822,43 +900,22 @@ class DevPipeline:
                     reason = "post gate requires human review: " + ", ".join(
                         g.name for g in gate_report.human_required
                     )
-                    return self._escalate(
-                        task,
-                        artifacts,
-                        Outcome(
-                            task_id=task.id,
-                            status="escalated",
-                            decision={
-                                "reason": reason,
-                                "findings": _gate_findings(gate_report),
-                            },
-                            run_dir=artifacts.run_dir,
-                            worktree=worktree.path,
-                            branch=worktree.branch,
-                            reviews=reviews,
-                        ),
-                        reason,
-                    )
+                    return stop(reason, findings=_gate_findings(gate_report))
                 if gate_report.blocking_failures:
                     findings = _gate_findings(gate_report)
                     last_failure = "post gates failed: " + ", ".join(
                         g.name for g in gate_report.blocking_failures
                     )
                     artifacts.write_json("findings.json", findings)
-                    if round_no >= max_rounds:
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={"reason": "post gates did not pass", "findings": findings},
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                                reviews=reviews,
-                            ),
-                            "post gates did not pass after the review budget",
+                    if round_no >= max_attempts:
+                        names = ", ".join(
+                            g.name for g in gate_report.blocking_failures
+                        )
+                        return stop(
+                            f"post gates did not pass after {round_no} "
+                            f"attempt(s) ({review_rounds}/{max_reviews} review "
+                            f"round(s) used): {names}",
+                            findings=findings,
                         )
                     continue
 
@@ -868,31 +925,22 @@ class DevPipeline:
                     )
                     artifacts.write_json("out/science_guard.json", guard)
                     if guard.get("verdict") != "clear":
-                        return self._escalate(
-                            task,
-                            artifacts,
-                            Outcome(
-                                task_id=task.id,
-                                status="escalated",
-                                decision={
-                                    "reason": "science guard blocked the patch",
-                                    "findings": _review_findings(guard),
-                                },
-                                run_dir=artifacts.run_dir,
-                                worktree=worktree.path,
-                                branch=worktree.branch,
-                                reviews=reviews,
-                            ),
+                        return stop(
                             "science guard blocked the patch",
+                            findings=_review_findings(guard),
                         )
 
                 artifacts.append_event(
-                    "round_approved", round=round_no, commit=commit
+                    "round_approved",
+                    round=round_no,
+                    review_rounds=review_rounds,
+                    commit=commit,
                 )
                 decision = {
                     "status": "approved",
                     "risk": task.risk,
                     "rounds": round_no,
+                    "review_rounds": review_rounds,
                     "commit": commit,
                     "branch": worktree.branch,
                     "changed_files": worktree.changed_files(worktree.base),
@@ -917,7 +965,9 @@ class DevPipeline:
                     rounds=round_no,
                     cost_usd=float(decision["cost_usd"]),
                 )
-            raise RuntimeError("pipeline exhausted rounds without a terminal state")
+            raise RuntimeError(
+                "pipeline exhausted attempts without a terminal state"
+            )
         except Exception:
             artifacts.append_event("worktree_kept_for_debug", path=str(worktree.path))
             raise
@@ -1070,6 +1120,12 @@ class DevPipeline:
             "finished_at": utcnow(),
             "run_dir": str(artifacts.run_dir),
         }
+        if outcome is not None:
+            decision.setdefault("rounds", outcome.rounds)
+            if outcome.commit:
+                decision.setdefault("commit", outcome.commit)
+            if outcome.reviews:
+                decision.setdefault("reviews", outcome.reviews)
         artifacts.write_json("decision.json", decision)
         artifacts.append_event("task_finished", status=status, decision=decision)
         steps = artifacts.steps()
@@ -1089,6 +1145,10 @@ class DevPipeline:
                 "run_dir": str(artifacts.run_dir),
             }
         )
+        if artifacts.state_path.exists():
+            artifacts.update_state(
+                status=status, finished_at=decision["finished_at"]
+            )
         updated = task.model_copy(
             update={
                 "status": status,

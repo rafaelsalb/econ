@@ -1,0 +1,32 @@
+id: DEV-0026
+title: Derive the advisory gate file from the mechanical defects
+status: proposed
+risk: 3
+priority: 85
+created: '2026-11-24'
+goal: metrics_gate.json is derived from the same defect list that _decide reads,
+  not recalculated in _run_advisory. A school cell is marked failing exactly when
+  _decide would treat it as blocking, and satellite cells are excluded. Decisions
+  are unchanged.
+acceptance:
+- python -m pytest tests/test_advisory_gate.py -q
+scope:
+  allow:
+  - src/econ/loop.py
+  - tests/test_advisory_gate.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 8
+  max_diff_lines: 400
+source:
+  kind: local
+notes: 'Note for sign-off: _decide currently treats any D5 on a core or auxiliary
+  target as blocking, including low severity. Confirm that is intended; do not change
+  it here. Risk 3: touches src/econ/loop.py, so a human signs off. Tests must stub
+  run_agent and never run a saving backtest, open the lockbox, or write to registry/.'

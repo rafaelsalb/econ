@@ -23,8 +23,15 @@ limits:
   max_review_rounds: 2
   max_usd: 5
   max_changed_files: 10
-  max_diff_lines: 300
+  max_diff_lines: 400
 ```
+
+Limits are hard gates. `max_diff_lines` counts added + deleted lines for the
+whole branch diff, including tests and templates. Leave headroom for at least
+one review-fix cycle; for risk 2, prefer the policy auto-merge cap (400) or
+split the task. `max_changed_files` should be above the number of entries in
+`scope.allow`. `econ dev validate` warns when a risk-2 line cap is below the
+policy cap or the file cap has no headroom.
 
 Rules:
 

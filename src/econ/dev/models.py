@@ -181,6 +181,37 @@ class TaskValidationError(ValueError):
         super().__init__("; ".join(problems))
 
 
+def limit_warnings(task: Task, policy=None) -> list[str]:
+    """Non-fatal contract-calibration warnings.
+
+    The size cap is a hard gate. A risk-2 task whose cap sits below the policy
+    auto-merge cap has little room for a review fix, and a `scope.allow` count
+    equal to `max_changed_files` leaves no room for an extra fixture file.
+    These are warnings, not validation failures: a deliberately small task may
+    still choose a tight budget.
+    """
+    if policy is None:
+        return []
+    warnings: list[str] = []
+    if (
+        task.risk == 2
+        and task.limits.max_diff_lines
+        < policy.auto_merge.risk_2_max_diff_lines
+    ):
+        warnings.append(
+            f"{task.id}: max_diff_lines={task.limits.max_diff_lines} is below "
+            f"the risk-2 auto-merge cap "
+            f"{policy.auto_merge.risk_2_max_diff_lines}; a review fix can "
+            "exhaust the line budget. Add headroom or split the task."
+        )
+    if len(task.scope.allow) >= task.limits.max_changed_files:
+        warnings.append(
+            f"{task.id}: max_changed_files={task.limits.max_changed_files} has "
+            f"no headroom over {len(task.scope.allow)} scope.allow entry(s)."
+        )
+    return warnings
+
+
 def validate_task(task: Task, policy=None) -> list[str]:
     problems: list[str] = []
     if task.status == "active" and task.retries < 0:
