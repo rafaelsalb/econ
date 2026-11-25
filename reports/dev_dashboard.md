@@ -1,6 +1,6 @@
 # Development dashboard
 
-Generated: `2026-11-24T18:00:49+00:00`
+Generated: `2026-11-25T02:33:46+00:00`
 
 | Metric | Value |
 |---|---:|
@@ -13,6 +13,8 @@ Generated: `2026-11-24T18:00:49+00:00`
 | Autonomy rate (merged / total) | 0.0% |
 | Human intervention rate | 0.0% |
 | Average review rounds | 0.0 |
+| Step-limited runs | 0 |
+| Highest step utilization | 0% |
 | Recorded model cost | $0.00 |
 
 ## By risk
@@ -22,13 +24,11 @@ Generated: `2026-11-24T18:00:49+00:00`
 
 ## Held-out canaries
 
-Passed 3 of 3. Generated: `2026-11-24T18:00:42+00:00`.
+Passed 0 of 0.
 
 | Task | Result | Status | Rounds |
 |---|---|---|---:|
-| CANARY-001 | PASS | done | 1 |
-| CANARY-002 | PASS | done | 1 |
-| CANARY-003 | PASS | done | 2 |
+| — | — | — | — |
 
 ## Recent tasks
 
