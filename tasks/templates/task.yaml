@@ -5,6 +5,11 @@ status: proposed
 risk: 1
 priority: 50
 created: 2026-11-24
+# Optional: predecessor task ids. The scheduler will not start this task until
+# every listed task is `done` (merged). Promoting a dependent early is safe; it
+# stays in ready/ and is reported as blocked. Promotion rejects cycles and
+# unknown ids; `econ dev validate` rejects cycles and warns on unknown ids.
+depends_on: []
 goal: |
   One paragraph describing the observable behavior that must be true.
 acceptance:

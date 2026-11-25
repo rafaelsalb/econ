@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .artifacts import utcnow, write_json
 from .budget import BudgetLedger
+from .deps import blocked_tasks, blocking_reason, index as task_index
 from .locks import FileLock, PauseSwitch
 from .models import Task
 from .paths import claims_conflict
@@ -58,8 +59,11 @@ class DevScheduler:
     # -- selection ---------------------------------------------------------
     def select(self, limit: int | None = None) -> list[Task]:
         ready = sorted(self.store.ready(), key=_sort_key)
+        tasks_by_id = task_index(self.store.all())
         claims: list[list[str]] = [
-            task.scope.allow for task in self.store.all() if task.status == "active"
+            task.scope.allow
+            for task in tasks_by_id.values()
+            if task.status == "active"
         ]
         selected: list[Task] = []
         for task in ready:
@@ -69,11 +73,19 @@ class DevScheduler:
                 break
             if task.limits.max_usd > self.budget.remaining:
                 continue
+            # Dependencies are a hold, not a skip: the task stays ready and is
+            # picked up by a later tick once every predecessor has merged.
+            if blocking_reason(task, tasks_by_id) is not None:
+                continue
             if any(claims_conflict(task.scope.allow, claim) for claim in claims):
                 continue
             selected.append(task)
             claims.append(task.scope.allow)
         return selected
+
+    def blocked(self) -> list[dict]:
+        """Ready tasks that cannot run because dependencies are not done."""
+        return blocked_tasks(self.store.all())
 
     # -- execution ---------------------------------------------------------
     def _runner(self):
@@ -215,6 +227,7 @@ class DevScheduler:
                 "executor": self.executor,
                 "budget": self.budget.as_dict(),
                 "ready": [task.id for task in self.store.ready()],
+                "blocked": self.blocked(),
                 "outcomes": [outcome.as_dict() for outcome in outcomes],
             },
         )
@@ -239,6 +252,7 @@ class DevScheduler:
                 "alive": bool(lock_info and pid_alive(int(lock_info.get("pid", 0)))),
             },
             "ready": [t.id for t in self.store.ready()],
+            "blocked": self.blocked(),
             "active": active,
             "budget": self.budget.as_dict(),
             "last_tick": daemon,

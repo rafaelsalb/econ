@@ -99,6 +99,10 @@ class Task(BaseModel):
     scope: Scope
     limits: Limits = Field(default_factory=Limits)
     source: Source = Field(default_factory=Source)
+    # Predecessor task ids. The scheduler holds this task until every entry is
+    # `done` (merged). Promotion may stage a dependent, but a cycle or an
+    # unknown id is never a runnable graph.
+    depends_on: list[str] = Field(default_factory=list)
     notes: str = ""
     retries: int = Field(default=0, ge=0)
     demo: DemoConfig | None = None
@@ -158,6 +162,19 @@ class Task(BaseModel):
                     "scope.allow overlaps protected paths; use risk 3: "
                     + ", ".join(sorted(overlap))
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _depends_on_is_well_formed(self) -> Task:
+        seen: set[str] = set()
+        for dep_id in self.depends_on:
+            if not TASK_ID_RE.match(dep_id):
+                raise ValueError(f"dependency id is invalid: {dep_id!r}")
+            if dep_id == self.id:
+                raise ValueError("a task cannot depend on itself")
+            if dep_id in seen:
+                raise ValueError(f"duplicate dependency: {dep_id}")
+            seen.add(dep_id)
         return self
 
     def canonical(self) -> dict:

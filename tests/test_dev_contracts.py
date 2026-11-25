@@ -134,3 +134,103 @@ def test_promote_refuses_non_proposed_task(tmp_path):
     TaskStore(repo).save(task, status="done")
     with pytest.raises(ValueError):
         promote_task(TaskStore(repo), "DEV-0001", default_policy())
+
+
+def test_task_rejects_self_duplicate_and_malformed_dependencies():
+    payload = demo_task("DEV-0001").model_dump(mode="json")
+    for depends_on, message in (
+        (["DEV-0001"], "cannot depend on itself"),
+        (["DEV-0002", "DEV-0002"], "duplicate dependency"),
+        (["not-a-task"], "dependency id is invalid"),
+    ):
+        with pytest.raises(ValidationError, match=message):
+            Task.model_validate({**payload, "depends_on": depends_on})
+
+
+def test_promote_rejects_missing_dependency(tmp_path):
+    from econ.dev.tasks import promote_task
+
+    repo = make_repo(tmp_path / "repo")
+    task = demo_task("DEV-0001").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-9999"]}
+    )
+    add_task(repo, task)
+    with pytest.raises(ValueError, match="does not exist"):
+        promote_task(TaskStore(repo), "DEV-0001", default_policy())
+    assert (repo / "tasks" / "proposed" / "DEV-0001.yaml").exists()
+
+
+def test_promote_rejects_dependency_cycle(tmp_path):
+    from econ.dev.tasks import promote_task
+
+    repo = make_repo(tmp_path / "repo")
+    first = demo_task("DEV-0001").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-0002"]}
+    )
+    second = demo_task("DEV-0002").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-0001"]}
+    )
+    add_task(repo, first)
+    add_task(repo, second)
+    with pytest.raises(ValueError, match="dependency cycle"):
+        promote_task(TaskStore(repo), "DEV-0001", default_policy())
+    assert (repo / "tasks" / "proposed" / "DEV-0001.yaml").exists()
+
+
+def test_promote_allows_staged_dependent(tmp_path):
+    from econ.dev.tasks import promote_task
+
+    repo = make_repo(tmp_path / "repo")
+    predecessor = demo_task("DEV-0001").model_copy(update={"status": "ready"})
+    dependent = demo_task("DEV-0002").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-0001"]}
+    )
+    add_task(repo, predecessor)
+    add_task(repo, dependent)
+
+    promoted, path = promote_task(TaskStore(repo), "DEV-0002", default_policy())
+    assert promoted.status == "ready"
+    assert promoted.depends_on == ["DEV-0001"]
+    assert path.exists()
+
+
+def test_validate_all_reports_cycles_and_warns_on_missing(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    first = demo_task("DEV-0001").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-0002"]}
+    )
+    second = demo_task("DEV-0002").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-0001"]}
+    )
+    add_task(repo, first)
+    add_task(repo, second)
+
+    store = TaskStore(repo)
+    problems = store.validate_all(default_policy())
+    assert any("dependency cycle" in problem for problem in problems)
+
+    missing = demo_task("DEV-0003").model_copy(
+        update={"status": "proposed", "depends_on": ["DEV-9999"]}
+    )
+    add_task(repo, missing)
+    assert store.dependency_warnings() == [
+        "DEV-0003: dependency DEV-9999 does not exist"
+    ]
+    # Missing ids are warnings, not gate failures: a worktree may hold an
+    # older committed snapshot of the task store.
+    assert not any("DEV-9999" in problem for problem in store.validate_all(default_policy()))
+
+
+def test_new_task_payload_carries_dependencies():
+    from econ.dev.tasks import new_task_payload
+
+    payload = new_task_payload(
+        task_id="DEV-0001",
+        title="dependent",
+        goal="wait for the predecessor",
+        acceptance=["python -m pytest -q"],
+        allow=["src/econ/example.py"],
+        depends_on=["DEV-0000"],
+    )
+    assert payload["depends_on"] == ["DEV-0000"]
+

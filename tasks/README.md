@@ -12,6 +12,7 @@ status: proposed        # proposed | ready | active | done | escalated | failed 
 risk: 1                 # 0 docs, 1 tests/refactor, 2 behavior, 3 protected/science
 priority: 50
 created: 2026-11-24
+depends_on: []           # optional: ids that must be `done` (merged) first
 goal: |
   What must be true when this is done.
 acceptance:
@@ -40,6 +41,12 @@ Rules:
 - `scope.allow` must name the paths. `**` is rejected.
 - If the change needs a protected path, set `risk: 3`; the scheduler escalates it
   for human sign-off instead of implementing it autonomously.
+- `depends_on` lists predecessor task ids. A dependent may be promoted before
+  its predecessor runs (staging is allowed); the scheduler holds it until every
+  dependency is `done` (merged). `shadow`, `escalated`, `failed`, `active`, and
+  `ready` do not satisfy a dependency. Promotion rejects cycles and unknown ids;
+  `econ dev validate` rejects cycles and warns on unknown ids (a worktree sees a
+  committed task snapshot that can lag the live store).
 - A behavior change needs a test that fails on the base commit and passes on the
   patch. The controller enforces this.
 - `demo` is only for the deterministic fake runner used by tests, smoke runs, and

@@ -4,6 +4,8 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from econ.agents import dev_agents, load_dev_config
 from econ.dev.gates import GateReport, GateResult
 from econ.dev.models import limit_warnings
@@ -661,3 +663,46 @@ def test_step_limit_message_names_the_role_and_limit():
     assert "implementer" in message
     assert "60-step limit" in message
     assert "did not produce a JSON artifact" in message
+
+
+def test_pipeline_refuses_unmet_dependency(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task("DEV-0001"))
+    dependent = demo_task("DEV-0002").model_copy(
+        update={"depends_on": ["DEV-0001"]}
+    )
+    add_task(repo, dependent)
+
+    with pytest.raises(ValueError, match="dependency DEV-0001 is ready"):
+        run_task(repo, "DEV-0002")
+    # The refusal happens before the task is marked active or given a worktree.
+    assert TaskStore(repo).load("DEV-0002").status == "ready"
+    assert not (repo / "runs" / "dev" / "tasks" / "DEV-0002").exists()
+
+
+def test_pipeline_runs_after_dependency_is_done(tmp_path):
+    repo = make_repo(tmp_path / "repo")
+    add_task(repo, demo_task("DEV-0001"))
+    files = [
+        {
+            "path": "src/econ/beta.py",
+            "content": "def beta() -> str:\n    return 'beta'\n",
+        },
+        {
+            "path": "tests/test_beta.py",
+            "content": "from econ.beta import beta\n\n\ndef test_beta():\n    assert beta() == 'beta'\n",
+        },
+    ]
+    dependent = demo_task(
+        "DEV-0002",
+        files=files,
+        acceptance=["python -m pytest tests/test_beta.py -q"],
+        allow=[item["path"] for item in files],
+    ).model_copy(update={"depends_on": ["DEV-0001"]})
+    add_task(repo, dependent)
+
+    store = TaskStore(repo)
+    store.save(store.load("DEV-0001"), status="done")
+    outcome = run_task(repo, "DEV-0002")
+    assert outcome.status == "done", outcome.decision
+

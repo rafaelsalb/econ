@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml
 
+from .deps import cycle_problems, graph_problems, missing_dependency_problems
 from .models import STATUS_DIRS, Task, TaskValidationError, validate_task
 from .policy import DevPolicy
 
@@ -54,12 +55,19 @@ class TaskStore:
         return task
 
     def load(self, task_id: str) -> Task:
-        matches = [p for p in self.paths() if p.stem == task_id]
-        if not matches:
-            raise FileNotFoundError(f"task not found: {task_id}")
-        if len(matches) > 1:
-            raise ValueError(f"task id is duplicated: {task_id}")
-        return self.load_path(matches[0])
+        for _ in range(2):
+            matches = [p for p in self.paths() if p.stem == task_id]
+            if not matches:
+                raise FileNotFoundError(f"task not found: {task_id}")
+            if len(matches) > 1:
+                raise ValueError(f"task id is duplicated: {task_id}")
+            try:
+                return self.load_path(matches[0])
+            except FileNotFoundError:
+                # A parallel worker may have moved the status directory between
+                # the glob and the read. Re-enumerate at the new location.
+                continue
+        raise FileNotFoundError(f"task not found after status move: {task_id}")
 
     def path_for(self, task: Task) -> Path:
         return self.dir_for(task.status) / f"{task.id}.yaml"
@@ -99,14 +107,38 @@ class TaskStore:
         return f"{prefix}-{max(nums, default=0) + 1:04d}"
 
     def ready(self) -> list[Task]:
-        return [self.load_path(p) for p in sorted((self.base / "ready").glob("*.yaml"))]
+        tasks: list[Task] = []
+        for path in sorted((self.base / "ready").glob("*.yaml")):
+            try:
+                tasks.append(self.load_path(path))
+            except FileNotFoundError:
+                # Status moves are renames; another worker can claim the file
+                # between glob and read.
+                continue
+        return tasks
 
     def all(self) -> list[Task]:
-        return [self.load_path(p) for p in self.paths()]
+        tasks: list[Task] = []
+        missing: list[str] = []
+        for path in self.paths():
+            try:
+                tasks.append(self.load_path(path))
+            except FileNotFoundError:
+                # A status move is a rename. Remember the id and retry it at
+                # its new location so a dependency or scope claim is not lost
+                # from the snapshot.
+                missing.append(path.stem)
+        for task_id in dict.fromkeys(missing):
+            try:
+                tasks.append(self.load(task_id))
+            except FileNotFoundError:
+                continue
+        return tasks
 
     def validate_all(self, policy: DevPolicy | None = None) -> list[str]:
         problems: list[str] = []
         seen: dict[str, Path] = {}
+        valid: list[Task] = []
         for path in self.paths():
             try:
                 task = self.load_path(path)
@@ -116,9 +148,27 @@ class TaskStore:
             if task.id in seen:
                 problems.append(f"duplicate task id {task.id}: {seen[task.id]} and {path}")
             seen[task.id] = path
+            valid.append(task)
             for problem in validate_task(task, policy):
                 problems.append(f"{task.id}: {problem}")
+        # A cycle makes the affected tasks permanently ineligible. Missing ids
+        # are warnings here (see dependency_warnings) because a worktree sees an
+        # older committed task snapshot while status moves stay uncommitted.
+        problems.extend(cycle_problems(valid))
         return problems
+
+    def dependency_warnings(self) -> list[str]:
+        """Dependencies that name no task, reported without failing the gate.
+
+        The live store is authoritative in promote/select/run. Inside a task
+        worktree the committed `tasks/` snapshot can lag behind the main
+        checkout, so a missing id there is not proof the graph is invalid.
+        """
+        try:
+            tasks = [self.load_path(path) for path in self.paths()]
+        except Exception:  # noqa: BLE001
+            return []
+        return missing_dependency_problems(tasks)
 
     def freeze(self, task: Task, run_dir: Path) -> Path:
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -163,6 +213,13 @@ def promote_task(
     problems = validate_task(task, policy)
     if problems:
         raise TaskValidationError(problems)
+    # Validate the graph after the hypothetical move. A dependent may be staged
+    # before its predecessor runs; that is a warning, not a promotion error.
+    tasks = [item for item in store.all() if item.id != task.id]
+    tasks.append(task.model_copy(update={"status": "ready"}))
+    graph = graph_problems(tasks)
+    if graph:
+        raise TaskValidationError(graph)
     path = store.save(task, status="ready")
     return task.model_copy(update={"status": "ready"}), path
 
@@ -177,6 +234,7 @@ def new_task_payload(
     risk: int = 1,
     deny: list[str] | None = None,
     priority: int = 50,
+    depends_on: list[str] | None = None,
     source: dict | None = None,
     demo: dict | None = None,
     notes: str = "",
@@ -192,6 +250,7 @@ def new_task_payload(
         "goal": goal,
         "acceptance": acceptance,
         "scope": {"allow": allow, "deny": deny or []},
+        "depends_on": depends_on or [],
         "source": source or {"kind": "local"},
         "notes": notes,
     }

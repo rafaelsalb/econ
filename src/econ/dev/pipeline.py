@@ -11,6 +11,7 @@ import yaml
 
 from .artifacts import RunArtifacts, utcnow
 from .budget import BudgetLedger
+from .deps import blocking_reason, index as task_index
 from .gates import GateReport, GateRunner
 from .locks import FileLock
 from .models import Task, validate_task
@@ -180,6 +181,12 @@ class DevPipeline:
             raise ValueError(f"{task.id}: " + "; ".join(problems))
         if task.status != "ready":
             raise ValueError(f"{task.id}: task must be ready, is {task.status}")
+
+        reason = blocking_reason(task, task_index(self.store.all()))
+        if reason is not None:
+            raise ValueError(
+                f"{task.id}: {reason}; dependencies must be done before a run"
+            )
 
         task = task.model_copy(update={"status": "active"})
         self.store.save(task)

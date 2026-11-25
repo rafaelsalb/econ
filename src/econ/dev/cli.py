@@ -11,6 +11,7 @@ from pathlib import Path
 from .. import config
 from .artifacts import write_json
 from .canary import run_canaries, run_smoke, validate_canaries
+from .deps import blocked_tasks, pending_dependency_problems
 from .locks import PauseSwitch
 from .maintenance import run_maintenance
 from .models import Task, limit_warnings, validate_task
@@ -141,6 +142,13 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     new.add_argument("--allow", action="append", required=True)
     new.add_argument("--risk", type=int, choices=[0, 1, 2, 3], default=1)
     new.add_argument("--priority", type=int, default=50)
+    new.add_argument(
+        "--depends-on",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="task id that must be done before this one can run (repeatable)",
+    )
     new.add_argument("--json", action="store_true")
 
     promote = sp.add_parser(
@@ -259,10 +267,17 @@ def _validate(args: argparse.Namespace) -> None:
             )
             problems.extend(validate_task(task, policy))
             warnings.extend(limit_warnings(task, policy))
+            known = {item.id for item in store.all()} | {task.id}
+            warnings.extend(
+                f"{task.id}: dependency {dep} does not exist"
+                for dep in task.depends_on
+                if dep not in known
+            )
         except Exception as exc:  # noqa: BLE001
             problems.append(str(exc))
     else:
         problems = store.validate_all(policy)
+        warnings.extend(store.dependency_warnings())
         if not problems:
             for task in store.all():
                 # Historical task records are not actionable; warn on
@@ -289,8 +304,17 @@ def _list(args: argparse.Namespace) -> None:
         print("no tasks")
         return
     print(f"{'ID':12s} {'STATUS':10s} {'RISK':4s} {'PRI':3s} TITLE")
+    blocked = {row["task_id"]: row["reason"] for row in blocked_tasks(tasks)}
     for task in sorted(tasks, key=lambda t: (t.status, t.id)):
-        print(f"{task.id:12s} {task.status:10s} {task.risk:<4d} {task.priority:<3d} {task.title}")
+        suffix = ""
+        if task.depends_on:
+            suffix += f"  deps={','.join(task.depends_on)}"
+        if task.id in blocked:
+            suffix += f"  [blocked: {blocked[task.id]}]"
+        print(
+            f"{task.id:12s} {task.status:10s} {task.risk:<4d} "
+            f"{task.priority:<3d} {task.title}{suffix}"
+        )
 
 
 def _run(args: argparse.Namespace) -> None:
@@ -350,6 +374,10 @@ def _status(args: argparse.Namespace) -> None:
         return
     print(f"paused: {status['paused']}")
     print(f"ready: {', '.join(status['ready']) or '(none)'}")
+    blocked = "; ".join(
+        f"{row['task_id']} ({row['reason']})" for row in status["blocked"]
+    ) or "(none)"
+    print(f"blocked: {blocked}")
     print(f"active: {', '.join(status['active']) or '(none)'}")
     print(f"lock: {status['lock']}")
     print(f"budget: {status['budget']}")
@@ -557,12 +585,15 @@ def _promote(args: argparse.Namespace) -> None:
         task, path = promote_task(store, args.task, policy)
     except Exception as exc:  # noqa: BLE001
         raise SystemExit(f"promote failed: {exc}") from exc
+    warnings = pending_dependency_problems(task, store.all())
     if args.json:
         _json(
             {
                 "task_id": task.id,
                 "status": task.status,
                 "path": str(path),
+                "depends_on": list(task.depends_on),
+                "pending_dependencies": warnings,
                 "next": [
                     f"econ dev run --task {task.id} --shadow",
                     f"econ dev run --task {task.id}",
@@ -570,6 +601,8 @@ def _promote(args: argparse.Namespace) -> None:
             }
         )
         return
+    for warning in warnings:
+        print(f"WARN {warning}")
     print(f"task={task.id} status={task.status} path={path}")
     print(f"safe dry run: econ dev run --task {task.id} --shadow")
     print(f"real run:    econ dev run --task {task.id}")
@@ -603,6 +636,7 @@ def _new(args: argparse.Namespace) -> None:
         allow=args.allow,
         risk=args.risk,
         priority=args.priority,
+        depends_on=args.depends_on,
         status="proposed",
     )
     task = Task.model_validate(payload)

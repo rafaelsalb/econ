@@ -1,6 +1,6 @@
 id: DEV-0008
 title: Add the read-only task board and task detail pages
-status: active
+status: escalated
 risk: 2
 priority: 90
 created: '2026-11-24'
@@ -123,5 +123,7 @@ notes: 'Run only after DEV-0007 and DEV-0016 have merged. This slice assumes the
 
   before/after snapshot proving GET is side-effect free.
 
-  '
+
+  2026-11-25: escalated: implementer produced no changes; previous failure: pre gates
+  failed: scope, size'
 retries: 0
