@@ -235,7 +235,10 @@ the validation rejections. The lockbox must not be reopened.
 
 `config/agents.yaml` is the single source of truth. `econ agents render` writes
 native OpenCode agents under `.opencode/agents/`; every role defaults to
-`opencode-go/deepseek-v4.1-flash#max`.
+`opencode-go/deepseek-v4.1-flash#max`. A role may set `runtime: claude` plus a
+`claude_model`/`claude_effort`; the sandbox then mounts the Claude CLI and a
+generated read-only settings file instead of OpenCode. The mechanical evaluator
+is unchanged: the agent remains advisory in either runtime.
 
 `econ sandbox run` projects a minimal read-only inbox and a writable outbox into
 a Docker container with a read-only rootfs, non-root user, dropped capabilities,

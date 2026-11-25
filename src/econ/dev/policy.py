@@ -16,7 +16,10 @@ class AutoMergeConfig(BaseModel):
     # ceremony. Unknown tiers fail safe to one review.
     reviewers: dict[int, int] = Field(default_factory=lambda: {0: 0, 1: 0, 2: 2})
     # Must stay a different model family from the roster's first reviewer, and
-    # in sync with config/dev_agents.yaml's reviewer_alt entry.
+    # in sync with config/dev_agents.yaml's reviewer_alt entry. The runtime is
+    # part of the identity: the same model string can mean different things to
+    # OpenCode and Claude.
+    second_reviewer_runtime: str = "opencode"
     second_reviewer_model: str = "opencode-go/gpt-6-luna"
     risk_3: str = "human"
     # Merge-critical paths: a diff that touches one forces human sign-off at
@@ -81,6 +84,9 @@ class GatesConfig(BaseModel):
             r"gh[pousr]_[A-Za-z0-9]{16,}",
             r"-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----",
             r"OPENCODE_API_KEY\s*=\s*\S+",
+            r"ANTHROPIC_API_KEY\s*=\s*\S+",
+            r"CLAUDE_CODE_OAUTH_TOKEN\s*=\s*\S+",
+            r"sk-ant-[A-Za-z0-9_-]{16,}",
         ]
     )
 
@@ -114,6 +120,9 @@ DEFAULT_PROTECTED: tuple[str, ...] = (
     "reports/lockbox_report.md",
     "config/dev_policy.yaml",
     "config/dev_agents.yaml",
+    # Agent permission/config files are part of the sandbox boundary.
+    ".claude/**",
+    ".mcp.json",
     "src/econ/evaluate.py",
     "src/econ/critics.py",
     "src/econ/diagnostics.py",
@@ -172,25 +181,34 @@ def reviewer_model_problems(cfg: dict, policy: DevPolicy) -> list[str]:
     defaults = cfg.get("defaults") or {}
     agents = cfg.get("agents") or {}
     default_model = defaults.get("model")
+    default_runtime = defaults.get("runtime", "opencode")
 
-    def model_of(name: str) -> str | None:
-        return (agents.get(name) or {}).get("model", default_model)
+    def identity_of(name: str) -> tuple[str, str | None]:
+        raw = agents.get(name) or {}
+        runtime = raw.get("runtime", default_runtime)
+        if runtime == "claude":
+            return runtime, raw.get("claude_model", defaults.get("claude_model"))
+        return runtime, raw.get("model", default_model)
 
-    reviewer = model_of("reviewer")
-    alt = model_of("reviewer_alt")
+    reviewer = identity_of("reviewer")
+    alt = identity_of("reviewer_alt")
+    pinned = (
+        policy.auto_merge.second_reviewer_runtime,
+        policy.auto_merge.second_reviewer_model,
+    )
     problems: list[str] = []
-    if not alt:
+    if not alt[1]:
         problems.append("reviewer_alt is missing from config/dev_agents.yaml")
-    elif policy.auto_merge.second_reviewer_model != alt:
+    elif pinned != alt:
         problems.append(
             "config/dev_policy.yaml auto_merge.second_reviewer_model "
-            f"({policy.auto_merge.second_reviewer_model}) does not match "
-            f"reviewer_alt ({alt})"
+            f"({pinned[0]}:{pinned[1]}) does not match reviewer_alt "
+            f"({alt[0]}:{alt[1]}); also check second_reviewer_runtime"
         )
-    if reviewer and alt and reviewer == alt:
+    if reviewer[1] and alt[1] and reviewer == alt:
         problems.append(
-            "reviewer_alt must use a different model family than reviewer "
-            f"(both are {alt})"
+            "reviewer_alt must use a different runtime/model than reviewer "
+            f"(both are {alt[0]}:{alt[1]})"
         )
     return problems
 

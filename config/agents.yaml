@@ -3,8 +3,13 @@ version: 1
 # Single source of truth for the research agents.
 # Edit models/variants here, then run: econ agents render
 defaults:
+  # opencode or claude. Claude roles need claude_model; the OpenCode selector
+  # stays populated so the interactive OpenCode roster still renders.
+  runtime: opencode
   model: opencode-go/deepseek-v4.1-flash
   variant: max
+  claude_model: haiku
+  claude_effort: high
   steps: 12
   timeout_s: 900
   sandbox: offline
@@ -85,10 +90,13 @@ sandbox:
     offline_host: econ-proxy
     data_host: econ-data-proxy
     port: 3128
-    offline_hosts: ["opencode.ai", "models.dev"]
+    offline_hosts: ["opencode.ai", "models.dev", "api.anthropic.com"]
     data_hosts:
       - "api.bcb.gov.br"
       - "servicodados.ibge.gov.br"
       - "olinda.bcb.gov.br"
   env:
-    allow: ["OPENCODE_API_KEY"]
+    allow:
+      - "OPENCODE_API_KEY"
+      - "ANTHROPIC_API_KEY"
+      - "CLAUDE_CODE_OAUTH_TOKEN"

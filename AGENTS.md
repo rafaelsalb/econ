@@ -86,6 +86,10 @@ The development controller puts the worktree `src/` on `PYTHONPATH` and the main
   `.opencode/agents/econ-*.md`.
 - Development roster: `config/dev_agents.yaml` plus `config/prompts/dev/*.md`
   renders to `.opencode/agents/dev-*.md`.
+- Pipeline runtime is per-role: `runtime: opencode` or `runtime: claude` in the
+  roster, with separate `claude_model`/`claude_effort`. The Claude runner uses
+  generated settings under `.dev/`; do not add a checked-in `.claude/`
+  permission file without protecting it. Runner changes are risk 3.
 - Never hand-edit rendered agents. Edit the config/prompt, run the matching
   `agents render`, then `agents check`. `make agents` covers both rosters.
 - Research agents are sandboxed and advisory. The mechanical evaluator, not an

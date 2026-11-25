@@ -28,6 +28,9 @@ class AgentResult:
     cost_usd: float = 0.0
     tokens: int = 0
     steps: int = 0
+    error: str = ""
+    denials: list[dict] = field(default_factory=list)
+    request: dict = field(default_factory=dict)
 
     def json_output(self) -> dict | None:
         from .artifacts import extract_json
@@ -45,6 +48,7 @@ class AgentRunner(Protocol):
         *,
         timeout: int = 1200,
         model_override: str | None = None,
+        max_budget_usd: float | None = None,
     ) -> AgentResult: ...
 
 
@@ -154,6 +158,7 @@ class OpencodeRunner:
         *,
         timeout: int = 1200,
         model_override: str | None = None,
+        max_budget_usd: float | None = None,
     ) -> AgentResult:
         argv = self.command(role, prompt, model_override=model_override)
         env = command_env(self.repo, cwd)
@@ -234,6 +239,7 @@ class FakeRunner:
         *,
         timeout: int = 1200,
         model_override: str | None = None,
+        max_budget_usd: float | None = None,
     ) -> AgentResult:
         self.calls.append(role)
         task = self._task(cwd)
@@ -393,19 +399,118 @@ class FakeRunner:
         )
 
 
+class RoutedRunner:
+    """Dispatch each role to the runtime selected in config/dev_agents.yaml."""
+
+    def __init__(
+        self,
+        specs: dict[str, agent_config.AgentSpec],
+        runners: dict[str, AgentRunner],
+        *,
+        forced: str | None = None,
+    ):
+        self.specs = specs
+        self.runners = runners
+        self.forced = forced
+
+    def runtime_for(self, role: str) -> str:
+        spec = self.specs.get(role)
+        if spec is None:
+            raise KeyError(f"unknown dev agent role: {role}")
+        return self.forced or spec.runtime
+
+    def run(
+        self,
+        role: str,
+        cwd: Path,
+        prompt: str,
+        *,
+        timeout: int = 1200,
+        model_override: str | None = None,
+        max_budget_usd: float | None = None,
+    ) -> AgentResult:
+        runtime = self.runtime_for(role)
+        runner = self.runners.get(runtime)
+        if runner is None:
+            raise ValueError(
+                f"{role}: runtime {runtime!r} is configured but no runner "
+                "is available for it"
+            )
+        return runner.run(
+            role,
+            cwd,
+            prompt,
+            timeout=timeout,
+            model_override=model_override,
+            max_budget_usd=max_budget_usd,
+        )
+
+
 def runner_for(
     repo: Path,
     kind: str = "opencode",
     *,
     extra_env: dict[str, str] | None = None,
+    specs: dict[str, agent_config.AgentSpec] | None = None,
+    cfg: dict | None = None,
+    forced: str | None = None,
 ) -> AgentRunner:
     if kind in {"fake", "demo"}:
         return FakeRunner(repo)
-    if kind == "opencode":
-        return OpencodeRunner(repo, extra_env=extra_env)
     if kind in {"docker", "container"}:
         from .docker import DockerRunner
         from .policy import load_policy
 
-        return DockerRunner(repo, load_policy(repo))
-    raise ValueError(f"unknown runner: {kind}")
+        return DockerRunner(
+            repo,
+            load_policy(repo),
+            cfg=cfg,
+            specs=specs,
+            forced_runtime=forced,
+        )
+    if kind not in {"opencode", "claude", "auto"}:
+        raise ValueError(f"unknown runner: {kind}")
+    cfg = cfg or agent_config.load_dev_config()
+    if specs is None:
+        specs = {
+            spec.name: spec
+            for spec in agent_config.dev_agents(cfg, root=repo)
+        }
+    elif not isinstance(specs, dict):
+        specs = {spec.name: spec for spec in specs}
+
+    selected = forced or (kind if kind != "auto" else None)
+    if selected:
+        from dataclasses import replace
+
+        specs = {
+            name: replace(spec, runtime=selected)
+            for name, spec in specs.items()
+        }
+        if selected == "claude":
+            missing = sorted(
+                name for name, spec in specs.items() if not spec.claude_model
+            )
+            if missing:
+                raise ValueError(
+                    "cannot force Claude for roles without claude_model: "
+                    + ", ".join(missing)
+                )
+    runtimes = {selected} if selected else {spec.runtime for spec in specs.values()}
+    runners: dict[str, AgentRunner] = {}
+    for runtime in sorted(runtimes):
+        if runtime == "opencode":
+            runners[runtime] = OpencodeRunner(
+                repo, specs=specs, extra_env=extra_env
+            )
+        elif runtime == "claude":
+            from .claude import ClaudeRunner
+
+            runners[runtime] = ClaudeRunner(
+                repo, specs=specs, cfg=cfg, extra_env=extra_env
+            )
+        else:
+            raise ValueError(f"unknown configured runtime: {runtime}")
+    if len(runners) == 1:
+        return next(iter(runners.values()))
+    return RoutedRunner(specs, runners, forced=selected)

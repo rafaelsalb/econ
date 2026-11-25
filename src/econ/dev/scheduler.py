@@ -27,7 +27,7 @@ class DevScheduler:
         repo: Path,
         policy: DevPolicy | None = None,
         *,
-        runner_kind: str = "opencode",
+        runner_kind: str = "auto",
         executor: str = "local",
         shadow: bool = False,
         auto_merge: bool = True,
@@ -78,8 +78,9 @@ class DevScheduler:
     # -- execution ---------------------------------------------------------
     def _runner(self):
         kind = self.runner_kind
-        if self.executor == "docker" and kind == "opencode":
-            kind = "docker"
+        if self.executor == "docker":
+            forced = None if kind == "auto" else kind
+            return runner_for(self.repo, "docker", forced=forced)
         return runner_for(self.repo, kind)
 
     def run_once(self, *, max_tasks: int | None = None) -> list[Outcome]:
@@ -194,6 +195,15 @@ class DevScheduler:
                 pass
 
     def _write_state(self, outcomes: list[Outcome]) -> None:
+        from ..agents import dev_agents, load_dev_config
+
+        try:
+            runtimes = {
+                spec.name: spec.runtime
+                for spec in dev_agents(load_dev_config(), root=self.repo)
+            }
+        except Exception:  # noqa: BLE001
+            runtimes = {}
         write_json(
             self.state_path,
             {
@@ -201,6 +211,7 @@ class DevScheduler:
                 "paused": self.pause.paused(),
                 "max_parallel": self.max_parallel,
                 "runner": self.runner_kind,
+                "runtimes": runtimes,
                 "executor": self.executor,
                 "budget": self.budget.as_dict(),
                 "ready": [task.id for task in self.store.ready()],

@@ -45,30 +45,62 @@ escalation writes a *proposed* canary under `dev/evals/canary/proposed/`;
 a human curates the demo fixture and promotes it with `econ dev canary
 --promote`. Nothing runs from `proposed/` until then.
 
-## Model configuration
+## Model and runtime configuration
 
-Models and reasoning effort live only in `config/dev_agents.yaml` (per-agent
-`model` and `variant`; the `defaults` block is the fallback). To change one:
+Runtime, models and reasoning effort live only in `config/dev_agents.yaml`
+(per-agent `runtime`, `model`/`variant`, `claude_model`/`claude_effort`; the
+`defaults` block is the fallback). To change one:
 
-1. Edit `model`/`variant` for the role.
+1. Edit `runtime` and the model/effort for the role.
 2. Run `econ dev agents render` then `econ dev agents check`.
-3. `econ dev agents list` prints the resolved selector for every role.
+3. `econ dev agents list` prints the resolved runtime and selector for every
+   role.
 
-`econ dev agents check` also enforces the two cross-file relationships:
-`auto_merge.second_reviewer_model` in `config/dev_policy.yaml` must match
-`reviewer_alt`, and `reviewer_alt` must be a different model family from
-`reviewer`. The test suite asserts those relationships, not specific model
-IDs, so a model swap is a configuration edit, not a code change.
+`runtime: opencode` uses `opencode run`; `runtime: claude` uses the Claude Code
+CLI (`claude -p`). The two model namespaces are deliberately separate: an
+OpenCode selector is never silently translated into a Claude model, and a
+Claude role without `claude_model` fails validation. `econ dev run --runner
+{auto,opencode,claude}` overrides the per-role choice for one run.
+
+The Claude runner is not a full OpenCode permission clone. It translates the
+config intent into a generated `--settings` policy with `dontAsk` default-deny,
+`--restricted`, no project/user settings, no MCP, no skills, and a tools
+allowlist. Scoped Edit/Bash allows come from the role's `edit`/`shell` lists;
+secret files and dangerous commands are denied. A read allowlist cannot be
+expressed in Claude, so a local role with a narrow `read` pattern is refused
+rather than silently widened; the research sandbox relies on its mounts
+instead. The Docker executor remains the real OS boundary. The generated
+settings file is kept outside the worktree (or mounted read-only in Docker) so
+an agent cannot rewrite its own policy and have Claude reload it.
+
+Runtime smoke checks on 2026-11-24 used Haiku at `high`: a live Claude write to
+`.dev/out` succeeded, a write to `specs/evil.txt` was denied with a
+`permission_denials` record, and a fake-Claude Docker run wrote the artifact
+without leaking the settings file into the worktree. The research sandbox was
+exercised with the same fake-Claude path through the read-only inbox settings
+mount.
+
+`econ dev agents check` also enforces the cross-file reviewer relationship:
+`auto_merge.second_reviewer_runtime` and `second_reviewer_model` in
+`config/dev_policy.yaml` must match `reviewer_alt`, and `reviewer_alt` must use
+a different runtime/model identity from `reviewer`. The test suite asserts
+those relationships, not specific model IDs, so a model or runtime swap is a
+configuration edit, not a code change.
 
 Current pins: implementer `gpt-6-luna#xhigh` (the cheapest strong family —
 quality here is what the budget buys), verifier `deepseek-v4.1-flash#max`
 (different family from the implementer, so a blind check is not a shared
 blind spot), everything else `deepseek-v4.1-flash#max` except triage and
-scribe on `glm-5.3-flash`.
+scribe on `glm-5.3-flash`. The roster default for a Claude role is Haiku at
+`high` effort; raise effort only within the review budget and keep the second
+reviewer on a genuinely different runtime/model.
 
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents
-are not visible inside it.
+are not visible inside it. Research roles also accept `runtime: claude` in
+`config/agents.yaml`; the sandbox mounts the Claude binary/credential instead
+of OpenCode and passes a generated read-only settings file. The mechanical
+evaluator remains the authority in either case.
 
 ## The human front door
 
@@ -215,7 +247,8 @@ econ dev validate --all --canaries
 econ dev list
 econ dev promote DEV-0001                  # human promotion: proposed → ready
 econ dev run --task DEV-0001 --fake        # deterministic local pipeline
-econ dev run --task DEV-0001               # real OpenCode agents
+econ dev run --task DEV-0001               # configured runtime (opencode/claude)
+econ dev run --task DEV-0001 --runner claude  # force Claude for this run
 econ dev run --task DEV-0001 --shadow      # run everything, never merge
 econ dev daemon --once --max-parallel 2    # one scheduler tick
 econ dev daemon --max-parallel 2           # continuous scheduler

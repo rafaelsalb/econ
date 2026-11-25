@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from dataclasses import replace
+
 from econ import config
+from econ.agents import agents, load_config
 from econ.sandbox import docker_command, project_workspace
 
 
@@ -64,6 +67,39 @@ def test_data_role_uses_data_network():
         joined = " ".join(cmd)
         assert "--network econ-data-internal" in joined
         assert env["HTTPS_PROXY"].startswith("http://econ-data-proxy")
+    finally:
+        shutil.rmtree(ws.root, ignore_errors=True)
+
+
+def test_claude_mounts_binary_and_ignores_opencode_roster(tmp_path, monkeypatch):
+    import econ.sandbox as sandbox
+
+    fake = tmp_path / "claude"
+    fake.write_text("#!/bin/sh\n")
+    real_which = sandbox.shutil.which
+    monkeypatch.setattr(
+        sandbox.shutil,
+        "which",
+        lambda name: str(fake) if name == "claude" else real_which(name),
+    )
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    spec = replace(
+        next(spec for spec in agents(load_config()) if spec.name == "theorist"),
+        runtime="claude",
+        claude_model="haiku",
+        claude_effort="high",
+    )
+    ws = project_workspace("t", "claude-mount")
+    try:
+        cmd, _, env = docker_command(
+            ws, ["claude", "--version"], network="offline", spec=spec
+        )
+        joined = " ".join(cmd)
+        assert f"{fake}:/usr/local/bin/claude:ro" in joined
+        assert "/workspace/.opencode/agents" not in joined
+        assert env["CLAUDE_CONFIG_DIR"] == "/home/econ/.claude"
+        assert env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] == "1"
     finally:
         shutil.rmtree(ws.root, ignore_errors=True)
 

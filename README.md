@@ -135,7 +135,7 @@ propose → review → promote → run → gates → merge (or escalate)
 uv venv --python 3.12
 uv pip install -e ".[dev]"
 make gate              # tests + econ check + roster drift + contract validation
-econ dev doctor        # local environment: git, gh, opencode, model catalog
+econ dev doctor        # local environment: git, gh, configured agent runtimes
 ```
 
 ### Step 1 — propose a task contract
@@ -242,18 +242,23 @@ into `tasks/ready/`.
 ### Step 7 — change models, prompts, and gates
 
 ```bash
-econ dev agents list       # resolved model#variant for every role
+econ dev agents list       # runtime, model and effort for every role
 econ dev agents render     # rewrite .opencode/agents/dev-*.md
-econ dev agents check      # drift, reviewer-policy and family-divergence checks
+econ dev agents check      # drift, runtime, reviewer-policy and family checks
 econ dev agents validate   # model/variant resolution against the local catalog
 ```
 
-Models and reasoning effort live only in `config/dev_agents.yaml`; prompts in
-`config/prompts/dev/`; protected paths, auto-merge policy, budgets and gates
-in `config/dev_policy.yaml`. Model choice is configuration, not code: the
-suite asserts relationships (the second reviewer is a different family, the
-policy pin matches the roster), not specific model IDs. After any prompt or
-model change run the held-out suite:
+Runtime, models and reasoning effort live only in `config/dev_agents.yaml`;
+prompts in `config/prompts/dev/`; protected paths, auto-merge policy, budgets
+and gates in `config/dev_policy.yaml`. Set `runtime: claude` on a role (and a
+`claude_model`) to run that role through the Claude Code CLI. The default is
+OpenCode, and the OpenCode selector stays populated so the interactive
+`.opencode/agents/dev-*.md` roster still renders. `econ dev run --runner
+claude` forces the whole roster for one run; `--runner opencode` is the CI/offline
+fallback. Model choice is configuration, not code: the suite asserts
+relationships (the second reviewer is a different runtime/model, the policy pin
+matches the roster), not specific model IDs. After any prompt or model change
+run the held-out suite:
 
 ```bash
 econ dev canary --run --fake

@@ -25,9 +25,23 @@ class StepFakeRunner(FakeRunner):
             for spec in dev_agents(load_dev_config())
         }
 
-    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+    def run(
+        self,
+        role,
+        cwd,
+        prompt,
+        *,
+        timeout=1200,
+        model_override=None,
+        max_budget_usd=None,
+    ):
         result = super().run(
-            role, cwd, prompt, timeout=timeout, model_override=model_override
+            role,
+            cwd,
+            prompt,
+            timeout=timeout,
+            model_override=model_override,
+            max_budget_usd=max_budget_usd,
         )
         result.steps = self._steps
         return result

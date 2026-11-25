@@ -7,8 +7,19 @@ version: 1
 # against a writable git worktree, but they cannot touch the scientific contract
 # paths and they cannot merge their own work.
 defaults:
+  # Pipeline runtime: opencode or claude. `auto` (the CLI default) follows
+  # this value per role. Claude roles also need claude_model; the OpenCode
+  # selector stays populated so the interactive OpenCode roster still renders.
+  # Example per-role switch:
+  #   implementer:
+  #     runtime: claude
+  #     claude_model: haiku
+  #     claude_effort: high
+  runtime: opencode
   model: opencode-go/deepseek-v4.1-flash
   variant: max
+  claude_model: haiku
+  claude_effort: high
   mode: subagent
   hidden: false
   # Per-turn model-step cap. On the last step OpenCode removes tools and asks
@@ -152,6 +163,8 @@ agents:
         - { action: edit, resource: "src/econ/checks.py", effect: deny }
         - { action: edit, resource: "config/dev_policy.yaml", effect: deny }
         - { action: edit, resource: "config/dev_agents.yaml", effect: deny }
+        - { action: edit, resource: ".claude/**", effect: deny }
+        - { action: edit, resource: ".mcp.json", effect: deny }
 
   reviewer:
     description: Blind code review of the commit diff and test evidence. Cannot edit code.

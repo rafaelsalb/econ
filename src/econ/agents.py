@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from . import config
+from .claude_cli import CLAUDE_EFFORTS, claude_command, permission_policy
 
 AGENTS_FILE = config.ROOT / "config" / "agents.yaml"
 DEV_AGENTS_FILE = config.ROOT / "config" / "dev_agents.yaml"
@@ -68,6 +69,9 @@ class AgentSpec:
     steps: int
     sandbox: str
     timeout_s: int
+    runtime: str = "opencode"
+    claude_model: str | None = None
+    claude_effort: str | None = None
     prefix: str = DEFAULT_AGENT_PREFIX
     mode: str = "all"
     hidden: bool = True
@@ -79,6 +83,12 @@ class AgentSpec:
     @property
     def selector(self) -> str:
         return f"{self.model}#{self.variant}" if self.variant else self.model
+
+    @property
+    def claude_selector(self) -> str:
+        if not self.claude_model:
+            raise ValueError(f"{self.name}: no Claude model configured")
+        return self.claude_model
 
 
 def load_config(path: Path | None = None) -> dict:
@@ -109,6 +119,18 @@ def agents(
         if not model or "#" in model:
             raise ValueError(f"{name}: model must be provider/model without #variant")
         variant = raw.get("variant", defaults.get("variant"))
+        runtime = raw.get("runtime", defaults.get("runtime", "opencode"))
+        if runtime not in {"opencode", "claude"}:
+            raise ValueError(f"{name}: runtime must be opencode or claude, got {runtime!r}")
+        claude_model = raw.get("claude_model", defaults.get("claude_model"))
+        claude_effort = raw.get("claude_effort", defaults.get("claude_effort"))
+        if runtime == "claude":
+            if not claude_model:
+                raise ValueError(f"{name}: runtime claude requires claude_model")
+            if claude_effort is not None and claude_effort not in CLAUDE_EFFORTS:
+                raise ValueError(
+                    f"{name}: claude_effort must be one of {', '.join(CLAUDE_EFFORTS)}"
+                )
         out.append(
             AgentSpec(
                 name=name,
@@ -119,6 +141,9 @@ def agents(
                 steps=int(raw.get("steps", defaults.get("steps", 12))),
                 sandbox=raw.get("sandbox", defaults.get("sandbox", "offline")),
                 timeout_s=int(raw.get("timeout_s", defaults.get("timeout_s", 900))),
+                runtime=runtime,
+                claude_model=claude_model,
+                claude_effort=claude_effort,
                 prefix=prefix,
                 mode=raw.get("mode", defaults.get("mode", "all")),
                 hidden=bool(raw.get("hidden", defaults.get("hidden", True))),
@@ -148,16 +173,67 @@ def step_budget_problems(specs: list[AgentSpec], ceiling: int) -> list[str]:
     return problems
 
 
-def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
+def _merged_permissions(raw: dict, defaults: dict | None = None) -> dict:
     defaults = defaults or {}
-    perms: list[dict] = [{"action": "*", "resource": "*", "effect": "deny"}]
     base_permissions = defaults.get("permissions", {})
     own_permissions = raw.get("permissions", {})
     p = {
-        key: list(dict.fromkeys([*base_permissions.get(key, []), *own_permissions.get(key, [])]))
+        key: list(
+            dict.fromkeys(
+                [*base_permissions.get(key, []), *own_permissions.get(key, [])]
+            )
+        )
         for key in {"read", "edit", "shell", "subagents"}
     }
     p["deny"] = [*base_permissions.get("deny", []), *own_permissions.get("deny", [])]
+    p["question"] = own_permissions.get(
+        "question", base_permissions.get("question")
+    )
+    return p
+
+
+def agent_permissions(cfg: dict, name: str) -> dict:
+    defaults = cfg.get("defaults") or {}
+    raw = (cfg.get("agents") or {}).get(name) or {}
+    return _merged_permissions(raw, defaults)
+
+
+def validate_runtime_config(cfg: dict) -> list[str]:
+    """Validate the runtime half of the roster without touching model catalogs."""
+    problems: list[str] = []
+    defaults = cfg.get("defaults") or {}
+    default_runtime = defaults.get("runtime", "opencode")
+    for name, raw in (cfg.get("agents") or {}).items():
+        if raw.get("disabled"):
+            continue
+        runtime = raw.get("runtime", default_runtime)
+        if runtime not in {"opencode", "claude"}:
+            problems.append(f"{name}: unknown runtime {runtime!r}")
+            continue
+        if runtime == "claude":
+            model = raw.get("claude_model", defaults.get("claude_model"))
+            effort = raw.get("claude_effort", defaults.get("claude_effort"))
+            if not model:
+                problems.append(f"{name}: runtime claude requires claude_model")
+            if effort is not None and effort not in CLAUDE_EFFORTS:
+                problems.append(
+                    f"{name}: claude_effort must be one of "
+                    f"{', '.join(CLAUDE_EFFORTS)}"
+                )
+            perms = _merged_permissions(raw, defaults)
+            if perms.get("question") == "allow":
+                problems.append(
+                    f"{name}: runtime claude is headless and cannot use the "
+                    "question tool; keep this role on opencode or add an "
+                    "interactive Claude runner"
+                )
+    return problems
+
+
+def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
+    defaults = defaults or {}
+    perms: list[dict] = [{"action": "*", "resource": "*", "effect": "deny"}]
+    p = _merged_permissions(raw, defaults)
     for path in p["read"]:
         perms.append({"action": "read", "resource": path, "effect": "allow"})
     for path in p["edit"]:
@@ -176,9 +252,7 @@ def _permissions(raw: dict, defaults: dict | None = None) -> list[dict]:
         perms.append({"action": "subagent", "resource": "*", "effect": "deny"})
 
     perms.extend(_GENERIC_DENIES)
-    question_mode = own_permissions.get(
-        "question", base_permissions.get("question")
-    )
+    question_mode = p.get("question")
     if question_mode == "allow":
         # The question tool is denied for the rest of the roster; the intake
         # agent is the explicit exception so it can interview the human.
@@ -333,7 +407,7 @@ def validate_dev_variants(cfg: dict | None = None, *, root: Path | None = None) 
     return _validate_variants(cfg or load_dev_config(), root=root)
 
 
-def agent_argv(spec: AgentSpec, message: str) -> list[str]:
+def opencode_argv(spec: AgentSpec, message: str) -> list[str]:
     return [
         "opencode",
         "run",
@@ -345,6 +419,58 @@ def agent_argv(spec: AgentSpec, message: str) -> list[str]:
         "json",
         message,
     ]
+
+
+def claude_argv(
+    spec: AgentSpec,
+    message: str,
+    *,
+    settings_path: Path,
+    cfg: dict | None = None,
+    cwd: Path = Path("/workspace"),
+) -> list[str]:
+    cfg = cfg or load_config()
+    perms = agent_permissions(cfg, spec.name)
+    policy = permission_policy(
+        edit=perms["edit"],
+        shell=perms["shell"],
+        deny=perms["deny"],
+        root=cwd,
+        read=perms["read"],
+        allow_read_allowlist=True,
+    )
+    system_prompt = spec.prompt_path.read_text().strip()
+    return claude_command(
+        spec,
+        system_prompt,
+        message,
+        settings_path,
+        cwd=cwd,
+        policy=policy,
+    )
+
+
+def agent_argv(
+    spec: AgentSpec,
+    message: str,
+    *,
+    settings_path: Path | None = None,
+    cfg: dict | None = None,
+) -> list[str]:
+    if spec.runtime == "opencode":
+        return opencode_argv(spec, message)
+    if spec.runtime == "claude":
+        if settings_path is None:
+            raise ValueError(
+                f"{spec.name}: Claude runs require a generated settings path"
+            )
+        return claude_argv(
+            spec,
+            message,
+            settings_path=settings_path,
+            cfg=cfg,
+        )
+    raise ValueError(f"{spec.name}: unknown runtime {spec.runtime!r}")
 
 
 def brief_message() -> str:

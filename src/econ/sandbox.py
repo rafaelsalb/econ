@@ -11,8 +11,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from . import config
-from .agents import AgentSpec, agent_argv, agents as list_agents, brief_message, load_config
+from . import claude_cli, config
+from .agents import (
+    AgentSpec,
+    agent_argv,
+    agent_permissions,
+    agents as list_agents,
+    brief_message,
+    claude_argv,
+    load_config,
+)
 
 SANDBOX_ROOT = config.RUNS / "sandbox"
 OPENCODE_BIN = Path.home() / ".opencode" / "bin" / "opencode"
@@ -50,6 +58,7 @@ class InvocationResult:
     stdout_path: Path
     stderr_path: Path
     audit_path: Path
+    text: str = ""
 
     def stdout(self) -> str:
         return self.stdout_path.read_text() if self.stdout_path.exists() else ""
@@ -152,6 +161,9 @@ def _base_env(sandbox: dict, network: str) -> dict[str, str]:
         "XDG_CONFIG_HOME": "/home/econ/.config",
         "XDG_DATA_HOME": "/home/econ/.local/share",
         "XDG_CACHE_HOME": "/home/econ/.cache",
+        "CLAUDE_CONFIG_DIR": "/home/econ/.claude",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        "DISABLE_AUTOUPDATER": "1",
     }
     for key in sandbox.get("env", {}).get("allow", []):
         if key in os.environ:
@@ -170,32 +182,46 @@ def _base_env(sandbox: dict, network: str) -> dict[str, str]:
     return env
 
 
-def _mounts(ws: Workspace) -> list[str]:
+def _mounts(ws: Workspace, spec: AgentSpec | None = None) -> list[str]:
     mounts = [
         f"{ws.inbox}:/workspace/in:ro",
         f"{ws.outbox}:/workspace/out:rw",
         f"{ws.home}:/home/econ:rw",
     ]
-    agents_dir = config.ROOT / ".opencode" / "agents"
-    if agents_dir.exists():
-        # Mount only the research roster. Development agents have broad read
-        # access to the repository and must not be visible inside the research
-        # sandbox.
-        research_agents = sorted(agents_dir.glob("econ-*.md"))
-        for agent_file in research_agents:
+    runtime = spec.runtime if spec is not None else "opencode"
+    if runtime == "opencode":
+        agents_dir = config.ROOT / ".opencode" / "agents"
+        if agents_dir.exists():
+            # Mount only the research roster. Development agents have broad
+            # read access to the repository and must not be visible inside the
+            # research sandbox.
+            research_agents = sorted(agents_dir.glob("econ-*.md"))
+            for agent_file in research_agents:
+                mounts.append(
+                    f"{agent_file}:/workspace/.opencode/agents/{agent_file.name}:ro"
+                )
+        project_config = config.ROOT / "opencode.jsonc"
+        if project_config.exists():
+            mounts.append(f"{project_config}:/workspace/opencode.jsonc:ro")
+        if OPENCODE_BIN.exists():
+            mounts.append(f"{OPENCODE_BIN}:/usr/local/bin/opencode:ro")
+        if AUTH_FILE.exists() and "OPENCODE_API_KEY" not in os.environ:
+            # An explicit env key wins over a stale stored account.
             mounts.append(
-                f"{agent_file}:/workspace/.opencode/agents/{agent_file.name}:ro"
+                f"{AUTH_FILE}:/home/econ/.local/share/opencode/auth.json:ro"
             )
-    project_config = config.ROOT / "opencode.jsonc"
-    if project_config.exists():
-        mounts.append(f"{project_config}:/workspace/opencode.jsonc:ro")
-    if OPENCODE_BIN.exists():
-        mounts.append(f"{OPENCODE_BIN}:/usr/local/bin/opencode:ro")
-    if AUTH_FILE.exists() and "OPENCODE_API_KEY" not in os.environ:
-        # An explicit env key wins over a stale stored account.
-        mounts.append(
-            f"{AUTH_FILE}:/home/econ/.local/share/opencode/auth.json:ro"
-        )
+    else:
+        claude_bin = shutil.which("claude")
+        if claude_bin:
+            mounts.append(f"{claude_bin}:/usr/local/bin/claude:ro")
+        claude_auth = Path.home() / ".claude" / ".credentials.json"
+        if claude_auth.exists() and not (
+            os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+        ):
+            mounts.append(
+                f"{claude_auth}:/home/econ/.claude/.credentials.json:ro"
+            )
     return mounts
 
 
@@ -246,6 +272,7 @@ def docker_command(
     network: str = "offline",
     image: str | None = None,
     sandbox: dict | None = None,
+    spec: AgentSpec | None = None,
 ) -> tuple[list[str], str, dict[str, str]]:
     sandbox = sandbox or _sandbox_cfg()
     image = image or sandbox.get("image", "econ-agent:latest")
@@ -279,7 +306,7 @@ def docker_command(
         "--workdir",
         "/workspace",
     ]
-    for mount in _mounts(ws):
+    for mount in _mounts(ws, spec):
         cmd += ["-v", mount]
     for key, value in env.items():
         cmd += ["-e", f"{key}={value}"]
@@ -295,6 +322,7 @@ def run_in_sandbox(
     timeout_s: int = 900,
     image: str | None = None,
     extra_audit: dict | None = None,
+    spec: AgentSpec | None = None,
 ) -> InvocationResult:
     sandbox = _sandbox_cfg()
     image = image or sandbox.get("image", "econ-agent:latest")
@@ -306,10 +334,10 @@ def run_in_sandbox(
         return _run_bwrap(ws, argv, timeout_s, stdout_path, stderr_path, extra_audit)
 
     cmd, name, env = docker_command(
-        ws, argv, network=network, image=image, sandbox=sandbox
+        ws, argv, network=network, image=image, sandbox=sandbox, spec=spec
     )
     net_name = sandbox.get("networks", {}).get(network, "none")
-    mounts = _mounts(ws)
+    mounts = _mounts(ws, spec)
 
     start = time.time()
     timed_out = False
@@ -466,14 +494,56 @@ def run_agent(
         raise ValueError(f"unknown agent role: {role}")
     spec: AgentSpec = specs[role]
     ws = project_workspace(run_id, role, inputs=inputs, packet=packet)
-    argv = agent_argv(spec, brief_message())
-    return run_in_sandbox(
+    if spec.runtime == "claude":
+        perms = agent_permissions(cfg, spec.name)
+        translated = claude_cli.permission_policy(
+            edit=perms["edit"],
+            shell=perms["shell"],
+            deny=perms["deny"],
+            root="/workspace",
+            read=perms["read"],
+            allow_read_allowlist=True,
+        )
+        settings_path = ws.inbox / ".claude-settings.json"
+        settings_path.write_text(json.dumps(translated["settings"], indent=2))
+        argv = claude_argv(
+            spec,
+            brief_message(),
+            settings_path=Path("/workspace/in/.claude-settings.json"),
+            cfg=cfg,
+            cwd=Path("/workspace"),
+        )
+        extra_audit = {
+            "agent_id": spec.agent_id,
+            "runtime": "claude",
+            "model": spec.claude_model,
+            "effort": spec.claude_effort,
+        }
+    else:
+        argv = agent_argv(spec, brief_message())
+        extra_audit = {
+            "agent_id": spec.agent_id,
+            "runtime": "opencode",
+            "model": spec.selector,
+        }
+    result = run_in_sandbox(
         ws,
         argv,
         network=network or spec.sandbox,
         timeout_s=spec.timeout_s,
-        extra_audit={"agent_id": spec.agent_id, "model": spec.selector},
+        extra_audit=extra_audit,
+        spec=spec,
     )
+    if spec.runtime == "claude":
+        try:
+            result.text = claude_cli.parse_claude_result(result.stdout()).text
+        except claude_cli.ClaudeProtocolError:
+            result.text = ""
+    else:
+        from .loop import _stdout_text
+
+        result.text = _stdout_text(result.stdout_path)
+    return result
 
 
 def build_image(tag: str = "econ-agent:latest") -> subprocess.CompletedProcess:

@@ -246,7 +246,7 @@ def _run_advisory(
                     }
                 )
             elif res.exit_code == 0:
-                text = _stdout_text(res.stdout_path)
+                text = res.text or _stdout_text(res.stdout_path)
                 if text:
                     text_path = advisory_dir / f"{role}.md"
                     text_path.write_text(text)

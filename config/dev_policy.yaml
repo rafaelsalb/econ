@@ -17,6 +17,9 @@ protected:
   - "reports/lockbox_report.md"
   - "config/dev_policy.yaml"
   - "config/dev_agents.yaml"
+  # Agent permission/config files are part of the sandbox boundary.
+  - ".claude/**"
+  - ".mcp.json"
   - "src/econ/evaluate.py"
   - "src/econ/critics.py"
   - "src/econ/diagnostics.py"
@@ -46,6 +49,7 @@ auto_merge:
     0: 0
     1: 0
     2: 2
+  second_reviewer_runtime: opencode
   second_reviewer_model: opencode-go/gpt-6-luna
   # Merge-critical paths: a diff touching one forces human sign-off at merge
   # time regardless of tier or size. Blast radius beats diff size. Defense in
@@ -100,6 +104,9 @@ gates:
     - "gh[pousr]_[A-Za-z0-9]{16,}"
     - "-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----"
     - "OPENCODE_API_KEY\\s*=\\s*\\S+"
+    - "ANTHROPIC_API_KEY\\s*=\\s*\\S+"
+    - "CLAUDE_CODE_OAUTH_TOKEN\\s*=\\s*\\S+"
+    - "sk-ant-[A-Za-z0-9_-]{16,}"
 
 github:
   label: "dev:ready"

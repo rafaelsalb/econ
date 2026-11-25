@@ -22,13 +22,7 @@ from .specs import hash_card, load_card, validate_card
 from .vintage import Panel
 
 
-def _load_api_key(path: str | None) -> None:
-    """Load a provider key from a file without printing it.
-
-    The file should be mode 600 and live outside the repository. The value is
-    set as OPENCODE_API_KEY for the sandbox process only; the audit records the
-    variable name, never the value.
-    """
+def _load_key(path: str | None, env_var: str) -> None:
     if not path:
         return
     key_path = Path(path).expanduser()
@@ -43,7 +37,17 @@ def _load_api_key(path: str | None) -> None:
     key = key_path.read_text().strip()
     if not key:
         raise SystemExit(f"api key file is empty: {key_path}")
-    os.environ["OPENCODE_API_KEY"] = key
+    os.environ[env_var] = key
+
+
+def _load_api_key(path: str | None) -> None:
+    """Load an OpenCode key from a file without printing it."""
+    _load_key(path, "OPENCODE_API_KEY")
+
+
+def _load_anthropic_key(path: str | None) -> None:
+    """Load an Anthropic key from a file without printing it."""
+    _load_key(path, "ANTHROPIC_API_KEY")
 
 
 def _latest_per_model(df: pd.DataFrame) -> pd.DataFrame:
@@ -119,6 +123,7 @@ def cmd_web(args) -> None:
 
 def cmd_loop(args) -> None:
     _load_api_key(getattr(args, "api_key_file", None))
+    _load_anthropic_key(getattr(args, "anthropic_key_file", None))
     if args.model == "new_keynesian":
         res = run_loop(
             model_id=args.model,
@@ -144,6 +149,7 @@ def cmd_agents(args) -> None:
         agents as list_agents,
         check_all,
         load_config,
+        validate_runtime_config,
         validate_variants,
         write_all,
     )
@@ -154,17 +160,23 @@ def cmd_agents(args) -> None:
         return
     if args.action == "check":
         problems = check_all()
+        problems += validate_runtime_config(load_config())
         print("agents up to date" if not problems else "\n".join(problems))
         raise SystemExit(0 if not problems else 1)
     if args.action == "list":
         for spec in list_agents(load_config()):
+            model = (
+                f"{spec.claude_model}#{spec.claude_effort or 'default'}"
+                if spec.runtime == "claude"
+                else spec.selector
+            )
             print(
-                f"{spec.agent_id:24s} {spec.selector:48s} "
+                f"{spec.agent_id:24s} {spec.runtime:8s} {model:48s} "
                 f"sandbox={spec.sandbox:8s} steps={spec.steps}"
             )
         return
     if args.action == "validate":
-        problems = validate_variants()
+        problems = validate_variants() + validate_runtime_config(load_config())
         print("model variants valid" if not problems else "\n".join(problems))
         raise SystemExit(0 if not problems else 1)
 
@@ -205,6 +217,7 @@ def cmd_sandbox(args) -> None:
         raise SystemExit(0 if res.exit_code == 0 else 1)
     if args.action == "run":
         _load_api_key(args.api_key_file)
+        _load_anthropic_key(getattr(args, "anthropic_key_file", None))
         inputs = {}
         for item in args.input or []:
             dest, src = item.split("=", 1)
@@ -316,6 +329,11 @@ def main() -> None:
     p.add_argument("--max-rounds", type=int, default=3)
     p.add_argument("--agents", action="store_true", help="add sandboxed LLM advisory critics")
     p.add_argument("--api-key-file", default=None, help="file containing OPENCODE_API_KEY")
+    p.add_argument(
+        "--anthropic-key-file",
+        default=None,
+        help="file containing ANTHROPIC_API_KEY for Claude-runtime agents",
+    )
     p.set_defaults(func=cmd_loop)
 
     p = sub.add_parser("report", help="build the monthly report and chart")
@@ -358,6 +376,11 @@ def main() -> None:
     p.add_argument("--input", action="append", default=[])
     p.add_argument("--network", choices=["offline", "data", "none"], default=None)
     p.add_argument("--api-key-file", default=None, help="file containing OPENCODE_API_KEY")
+    p.add_argument(
+        "--anthropic-key-file",
+        default=None,
+        help="file containing ANTHROPIC_API_KEY for Claude-runtime agents",
+    )
     p.set_defaults(func=cmd_sandbox)
 
     from .dev.cli import add_parser as add_dev_parser

@@ -234,6 +234,12 @@ permissions:
 - action: edit
   resource: config/dev_agents.yaml
   effect: deny
+- action: edit
+  resource: .claude/**
+  effect: deny
+- action: edit
+  resource: .mcp.json
+  effect: deny
 ---
 
 You are the implementer for a scientific Python repository.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -60,6 +61,12 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     run.add_argument("--shadow", action="store_true", help="run without merging")
     run.add_argument("--no-auto-merge", action="store_true")
     run.add_argument("--fake", action="store_true", help="use the deterministic fake runner")
+    run.add_argument(
+        "--runner",
+        choices=["auto", "opencode", "claude"],
+        default="auto",
+        help="agent runtime; auto follows config/dev_agents.yaml",
+    )
     run.add_argument("--executor", choices=["local", "docker"], default="local")
     run.add_argument("--base", default=None)
     run.add_argument("--json", action="store_true")
@@ -71,6 +78,12 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     daemon.add_argument("--daily-budget", type=float, default=None)
     daemon.add_argument("--sleep", type=int, default=60)
     daemon.add_argument("--fake", action="store_true")
+    daemon.add_argument(
+        "--runner",
+        choices=["auto", "opencode", "claude"],
+        default="auto",
+        help="agent runtime; auto follows config/dev_agents.yaml",
+    )
     daemon.add_argument("--shadow", action="store_true")
     daemon.add_argument("--no-auto-merge", action="store_true")
     daemon.add_argument("--executor", choices=["local", "docker"], default="local")
@@ -193,6 +206,7 @@ def _agents(args: argparse.Namespace) -> None:
         load_dev_config,
         step_budget_problems,
         validate_dev_variants,
+        validate_runtime_config,
         write_dev_all,
     )
 
@@ -206,6 +220,7 @@ def _agents(args: argparse.Namespace) -> None:
         config = load_dev_config()
         problems = check_dev_all()
         problems += reviewer_model_problems(config, policy)
+        problems += validate_runtime_config(config)
         problems += step_budget_problems(
             dev_agents(config), policy.budget.max_agent_steps
         )
@@ -214,9 +229,14 @@ def _agents(args: argparse.Namespace) -> None:
             raise SystemExit(1)
     elif args.action == "list":
         for spec in dev_agents(load_dev_config()):
+            model = (
+                f"{spec.claude_model}#{spec.claude_effort or 'default'}"
+                if spec.runtime == "claude"
+                else spec.selector
+            )
             print(
-                f"{spec.agent_id:26s} {spec.mode:9s} {spec.selector:44s} "
-                f"hidden={spec.hidden} steps={spec.steps}"
+                f"{spec.agent_id:26s} {spec.mode:9s} {spec.runtime:8s} "
+                f"{model:44s} hidden={spec.hidden} steps={spec.steps}"
             )
     elif args.action == "validate":
         problems = validate_dev_variants()
@@ -278,9 +298,10 @@ def _run(args: argparse.Namespace) -> None:
     if args.fake:
         runner = runner_for(_repo(), "fake")
     elif args.executor == "docker":
-        runner = runner_for(_repo(), "docker")
+        forced = None if args.runner == "auto" else args.runner
+        runner = runner_for(_repo(), "docker", forced=forced)
     else:
-        runner = runner_for(_repo(), "opencode")
+        runner = runner_for(_repo(), args.runner)
     pipeline = DevPipeline(
         _repo(),
         policy,
@@ -308,7 +329,7 @@ def _daemon(args: argparse.Namespace) -> None:
     scheduler = DevScheduler(
         _repo(),
         load_policy(_repo()),
-        runner_kind="fake" if args.fake else "opencode",
+        runner_kind="fake" if args.fake else args.runner,
         executor=args.executor,
         shadow=args.shadow,
         auto_merge=not args.no_auto_merge,
@@ -456,7 +477,51 @@ def _doctor(args: argparse.Namespace) -> None:
         )
     )
     checks.append(("venv", (repo / ".venv" / "bin" / "python").exists(), ".venv/bin/python"))
-    checks.append(("opencode", shutil.which("opencode") is not None, shutil.which("opencode") or "missing"))
+    from ..agents import dev_agents, load_dev_config
+
+    try:
+        specs = dev_agents(load_dev_config(), root=repo)
+        runtimes = sorted({spec.runtime for spec in specs})
+    except Exception as exc:  # noqa: BLE001
+        runtimes = []
+        checks.append(("agent config", False, str(exc)))
+    if not runtimes:
+        checks.append(("agent config", False, "no agent runtimes resolved"))
+    for runtime in runtimes:
+        binary = shutil.which(runtime)
+        if binary is None:
+            checks.append((runtime, False, "missing binary"))
+            continue
+        detail = binary
+        if runtime == "claude":
+            try:
+                version = subprocess.run(
+                    [binary, "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                )
+            except Exception as exc:  # noqa: BLE001
+                checks.append((runtime, False, f"{type(exc).__name__}: {exc}"))
+                continue
+            detail = (version.stdout or version.stderr).strip()[:120] or binary
+            auth_ok = bool(
+                os.environ.get("ANTHROPIC_API_KEY")
+                or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+                or (Path.home() / ".claude" / ".credentials.json").exists()
+            )
+            if not auth_ok:
+                checks.append(
+                    (
+                        "claude auth",
+                        False,
+                        "no API key/token and no ~/.claude/.credentials.json",
+                    )
+                )
+            else:
+                checks.append(("claude auth", True, "credential source present"))
+        checks.append((runtime, True, detail))
     docker = shutil.which("docker") is not None
     checks.append(("docker", docker, "available; container executor optional" if docker else "missing; local executor still works"))
     try:

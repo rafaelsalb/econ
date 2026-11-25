@@ -160,7 +160,7 @@ class DevPipeline:
 
         self.repo = repo.resolve()
         self.policy = policy or load_policy(self.repo)
-        self.runner = runner or runner_for(self.repo, "opencode")
+        self.runner = runner or runner_for(self.repo, "auto")
         self.shadow = shadow
         self.auto_merge = auto_merge
         self.base = base or self.policy.branch
@@ -412,14 +412,24 @@ class DevPipeline:
         model_override: str | None = None,
     ) -> dict:
         artifacts.append_event("agent_started", role=role, round=round_no)
+        spent = float(artifacts.cost().get("total_usd", 0.0))
+        remaining = max(0.0, float(task.limits.max_usd) - spent)
+        if remaining <= 0:
+            raise RuntimeError(
+                f"per-task budget exhausted before {role}: "
+                f"${spent:.2f} >= ${task.limits.max_usd:.2f}"
+            )
         result = self.runner.run(
             role,
             worktree.path,
             prompt,
             timeout=min(task.limits.wall_seconds, self.policy.executor.timeout_s),
             model_override=model_override,
+            max_budget_usd=remaining,
         )
         self._record_agent(role, round_no, result, artifacts, task)
+        if result.error:
+            raise AgentProtocolError(f"{role} failed: {result.error}")
         if result.exit_code != 0 or result.timed_out:
             raise AgentProtocolError(
                 f"{role} failed (exit {result.exit_code}, timeout={result.timed_out}): "
@@ -450,6 +460,15 @@ class DevPipeline:
     ) -> None:
         artifacts.write_text(f"logs/{role}-r{round_no}.stdout.log", result.stdout)
         artifacts.write_text(f"logs/{role}-r{round_no}.stderr.log", result.stderr)
+        if result.request:
+            artifacts.write_json(
+                f"logs/{role}-r{round_no}.request.json", result.request
+            )
+        if result.denials:
+            artifacts.write_json(
+                f"logs/{role}-r{round_no}.denials.json",
+                {"denials": result.denials},
+            )
         artifacts.add_cost(role, result.cost_usd, result.tokens)
         step = artifacts.add_steps(
             role, round_no, result.steps, self.step_caps.get(role)
@@ -472,6 +491,8 @@ class DevPipeline:
             cost_usd=result.cost_usd,
             tokens=result.tokens,
             steps=result.steps,
+            error=result.error,
+            permission_denials=len(result.denials),
             step_limit=step["limit"],
             step_utilization=step["utilization"],
             step_limit_reached=step["limit_reached"],

@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OFFLINE_NETWORK="${OFFLINE_NETWORK:-econ-internal}"
 DATA_NETWORK="${DATA_NETWORK:-econ-data-internal}"
 EGRESS_NETWORK="${EGRESS_NETWORK:-econ-egress}"
-PROXY_OFFLINE_HOSTS="${PROXY_OFFLINE_HOSTS:-opencode.ai,models.dev}"
+PROXY_OFFLINE_HOSTS="${PROXY_OFFLINE_HOSTS:-opencode.ai,models.dev,api.anthropic.com}"
 PROXY_DATA_HOSTS="${PROXY_DATA_HOSTS:-api.bcb.gov.br,servicodados.ibge.gov.br,olinda.bcb.gov.br}"
 PROXY_PORT="${PROXY_PORT:-3128}"
 
