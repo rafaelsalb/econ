@@ -54,10 +54,24 @@ class PromptRecordingRunner(FakeRunner):
         super().__init__(repo)
         self.prompts: list[tuple[str, str]] = []
 
-    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+    def run(
+        self,
+        role,
+        cwd,
+        prompt,
+        *,
+        timeout=1200,
+        model_override=None,
+        max_budget_usd=None,
+    ):
         self.prompts.append((role, prompt))
         return super().run(
-            role, cwd, prompt, timeout=timeout, model_override=model_override
+            role,
+            cwd,
+            prompt,
+            timeout=timeout,
+            model_override=model_override,
+            max_budget_usd=max_budget_usd,
         )
 
 
@@ -73,9 +87,23 @@ class SizeRepairRunner(FakeRunner):
         super().__init__(repo)
         self.pad_rounds = pad_rounds
 
-    def run(self, role, cwd, prompt, *, timeout=1200, model_override=None):
+    def run(
+        self,
+        role,
+        cwd,
+        prompt,
+        *,
+        timeout=1200,
+        model_override=None,
+        max_budget_usd=None,
+    ):
         result = super().run(
-            role, cwd, prompt, timeout=timeout, model_override=model_override
+            role,
+            cwd,
+            prompt,
+            timeout=timeout,
+            model_override=model_override,
+            max_budget_usd=max_budget_usd,
         )
         if role == "implementer" and self._round(cwd) in self.pad_rounds:
             target = cwd / "src" / "econ" / "feature.py"
