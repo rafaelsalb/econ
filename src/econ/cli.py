@@ -121,6 +121,14 @@ def cmd_web(args) -> None:
     uvicorn.run(app, host=args.host, port=args.port)
 
 
+def cmd_console(args) -> None:
+    import uvicorn
+
+    from .webui.app import app
+
+    uvicorn.run(app, host=args.host, port=args.port)
+
+
 def cmd_loop(args) -> None:
     _load_api_key(getattr(args, "api_key_file", None))
     _load_anthropic_key(getattr(args, "anthropic_key_file", None))
@@ -321,6 +329,11 @@ def main() -> None:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_web)
+
+    p = sub.add_parser("console", help="serve the local development console shell")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8100)
+    p.set_defaults(func=cmd_console)
 
     p = sub.add_parser("loop", help="run the school-model critic loop")
     p.add_argument("--model", default="new_keynesian")
