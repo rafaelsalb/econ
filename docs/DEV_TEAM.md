@@ -26,9 +26,9 @@ The controller lives in `src/econ/dev/`. The agent definitions live in
 | `dev-pm` | primary | Interview the human, draft a proposed contract, validate it, hand off; never edits code or merges |
 | `dev-lead` | primary | Plan, set risk, dispatch for risk ≥ 2; never edits code |
 | `dev-architect` | subagent | Design, interface and test plan for risk ≥ 2 |
-| `dev-implementer` | subagent | Smallest patch plus a red-green test, on `gpt-6-luna#xhigh` |
+| `dev-implementer` | subagent | Smallest patch plus a red-green test, on Claude Haiku at `xhigh` |
 | `dev-reviewer` | subagent | Blind diff review on `deepseek-v4.1-flash#max`, risk ≥ 2 only |
-| `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `gpt-6-luna` |
+| `dev-reviewer_alt` | subagent | Independent second review for risk 2 on `gpt-6-luna#xhigh` |
 | `dev-verifier` | subagent | Applies the patch to a clean worktree and runs acceptance, on `deepseek-v4.1-flash#max` |
 | `dev-science_guard` | subagent | Protected paths, purge, lockbox, registry, determinism; risk ≥ 2 only |
 | `dev-scribe` | subagent | Docs only, after approval |
@@ -87,13 +87,15 @@ a different runtime/model identity from `reviewer`. The test suite asserts
 those relationships, not specific model IDs, so a model or runtime swap is a
 configuration edit, not a code change.
 
-Current pins: implementer `gpt-6-luna#xhigh` (the cheapest strong family —
-quality here is what the budget buys), verifier `deepseek-v4.1-flash#max`
-(different family from the implementer, so a blind check is not a shared
-blind spot), everything else `deepseek-v4.1-flash#max` except triage and
-scribe on `glm-5.3-flash`. The roster default for a Claude role is Haiku at
-`high` effort; raise effort only within the review budget and keep the second
-reviewer on a genuinely different runtime/model.
+Current pins: implementer Claude Haiku at `xhigh` through the Claude runner
+(the OpenCode selector remains `gpt-6-luna#xhigh` for interactive sessions);
+verifier `deepseek-v4.1-flash#max` on OpenCode (different family from the
+implementer, so a blind check is not a shared blind spot); reviewer_alt
+`gpt-6-luna#xhigh` on OpenCode, the second family against the `deepseek`
+reviewer; everything else `deepseek-v4.1-flash#max` except triage and scribe on
+`glm-5.3-flash`. The roster default for a Claude role is Haiku at `high`; raise
+effort only within the review budget and keep the second reviewer on a
+genuinely different runtime/model.
 
 Research agents (`econ-*`) remain advisory and sandboxed. They are not part of
 this roster. The research sandbox mounts only `econ-*.md`, so development agents

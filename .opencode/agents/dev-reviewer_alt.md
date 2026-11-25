@@ -2,7 +2,7 @@
 description: Second independent reviewer on a different model family, used for risk
   2 auto-merges.
 mode: subagent
-model: opencode-go/gpt-6-luna#high
+model: opencode-go/gpt-6-luna#xhigh
 hidden: false
 steps: 32
 permissions:

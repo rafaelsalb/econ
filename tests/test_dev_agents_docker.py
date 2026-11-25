@@ -210,7 +210,13 @@ def test_docker_command_is_hardened_and_mounts_worktree(tmp_path):
     repo = make_repo(tmp_path / "repo")
     worktree = tmp_path / "worktree"
     worktree.mkdir()
-    runner = DockerRunner(repo, DevPolicy())
+    # This test locks the OpenCode command shape; the roster's runtime pin is
+    # configuration, so pin the role explicitly instead of depending on it.
+    specs = {
+        spec.name: replace(spec, runtime="opencode")
+        for spec in dev_agents(load_dev_config())
+    }
+    runner = DockerRunner(repo, DevPolicy(), specs=specs)
     cmd = runner.command("implementer", worktree, "do it")
     joined = " ".join(cmd)
     assert "--read-only" in cmd

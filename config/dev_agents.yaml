@@ -11,7 +11,7 @@ defaults:
   # this value per role. Claude roles also need claude_model; the OpenCode
   # selector stays populated so the interactive OpenCode roster still renders.
   # Example per-role switch:
-  #   implementer:
+  #   architect:
   #     runtime: claude
   #     claude_model: haiku
   #     claude_effort: high
@@ -119,10 +119,13 @@ agents:
   implementer:
     description: Writes the smallest code and test patch that satisfies the acceptance criteria.
     prompt: config/prompts/dev/implementer.md
-    # Implementer quality is what the budget buys; gpt-6-luna is the cheapest
-    # strong family. Bump the variant before changing the family.
+    # The pipeline runs the implementer on Claude Haiku at xhigh. The OpenCode
+    # selector remains populated for interactive sessions.
+    runtime: claude
     model: opencode-go/gpt-6-luna
     variant: xhigh
+    claude_model: haiku
+    claude_effort: xhigh
     steps: 60
     permissions:
       read: ["**"]
@@ -185,8 +188,9 @@ agents:
   reviewer_alt:
     description: Second independent reviewer on a different model family, used for risk 2 auto-merges.
     prompt: config/prompts/dev/reviewer_alt.md
+    runtime: opencode
     model: opencode-go/gpt-6-luna
-    variant: high
+    variant: xhigh
     steps: 32
     permissions:
       read: ["**"]
@@ -204,6 +208,7 @@ agents:
     # The verifier is the real second opinion for risk 0/1: careful and
     # skeptical, on a different family from the implementer. The mechanical
     # gates carry the actual verification authority.
+    runtime: opencode
     model: opencode-go/deepseek-v4.1-flash
     variant: max
     steps: 40
