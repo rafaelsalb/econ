@@ -1,6 +1,6 @@
 id: DEV-0009
 title: Add the run inspector for decisions, gates, cost, and artifacts
-status: ready
+status: escalated
 risk: 2
 priority: 80
 created: '2026-11-24'
@@ -61,6 +61,7 @@ limits:
   wall_seconds: 2400
 source:
   kind: local
+depends_on: []
 notes: 'Run only after DEV-0008 has merged. This slice reuses the task detail
 
   template and the fixture''s task writer.
@@ -96,5 +97,9 @@ notes: 'Run only after DEV-0008 has merged. This slice reuses the task detail
 
   GET is side-effect free. Do not depend on `runs/dev/` in the checkout.
 
-  '
+
+  2026-11-25: escalated: Required predecessor DEV-0008 is not merged on this base
+  (tasks/escalated/DEV-0008.yaml; readmodels.py and task.html absent), and the contract''s
+  own notes say to run only after DEV-0008 merges. Proceeding would recreate an escalated
+  slice; also .dev/task.yaml''s depends_on: [] conflicts with those notes.'
 retries: 0
