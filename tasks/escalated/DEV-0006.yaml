@@ -1,68 +1,101 @@
 id: DEV-0006
 title: Record real token usage and failure tracebacks
-status: proposed
+status: escalated
 risk: 3
 priority: 50
 created: '2026-11-24'
-goal: |
-  Stop losing two kinds of diagnostic evidence.
+goal: 'Stop losing two kinds of diagnostic evidence.
 
-  Token accounting: OpenCode's `--format json` stream nests model usage under
+
+  Token accounting: OpenCode''s `--format json` stream nests model usage under
+
   `part.tokens` (`input`, `output`, `reasoning`, `cache.read`,
+
   `cache.write`). `parse_opencode_events` and `_usage` currently read only
+
   top-level fields, so every recorded run reports zero tokens. Parse the
+
   nested shape when present, keep the existing top-level fallbacks, and prefer
+
   the nested value over top-level values so nothing is counted twice. Include
+
   the resulting total in `AgentResult.tokens`, the `agent_call` event, and the
+
   per-role `cost.json` entries via `RunArtifacts.add_cost`. If `part.cost` is
+
   present, use it the same way; never invent a cost when the provider reports
+
   zero.
 
+
   Failure evidence: when `DevPipeline.run_task` catches an exception, write
+
   `error.json` with `type`, `message`, `traceback`, and a snapshot of the
+
   current `state.json`, and include `traceback` in the `task_error` event.
+
   Keep the existing `status=failed` behavior and reason string. Do not change
+
   gate, review, budget, or merge decisions.
+
+  '
 acceptance:
-  - python -m pytest tests/test_dev_runner.py -q
-  - python -m pytest tests/test_dev_pipeline.py -q
+- python -m pytest tests/test_dev_runner.py -q
+- python -m pytest tests/test_dev_pipeline.py -q
 scope:
   allow:
-    - src/econ/dev/runner.py
-    - src/econ/dev/pipeline.py
-    - tests/test_dev_runner.py
-    - tests/test_dev_pipeline.py
+  - src/econ/dev/runner.py
+  - src/econ/dev/pipeline.py
+  - tests/test_dev_runner.py
+  - tests/test_dev_pipeline.py
   deny:
-    - specs/**
-    - data/**
-    - registry/**
-    - eval/**
-    - sandbox/**
-    - reports/final_report.md
-    - reports/lockbox_report.md
-    - config/**
-    - .github/**
-    - tests/dev_support.py
-    - tasks/templates/**
-    - dev/evals/canary/**
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/final_report.md
+  - reports/lockbox_report.md
+  - config/**
+  - .github/**
+  - tests/dev_support.py
+  - tasks/templates/**
+  - dev/evals/canary/**
 limits:
   max_review_rounds: 2
-  max_usd: 5
+  max_usd: 5.0
   max_changed_files: 4
   max_diff_lines: 250
   wall_seconds: 2400
-notes: |
-  Risk 3 by construction: `src/econ/dev/**` is protected, so the controller
+source:
+  kind: local
+notes: 'Risk 3 by construction: `src/econ/dev/**` is protected, so the controller
+
   will escalate this task for human sign-off.
 
+
   `tests/test_dev_runner.py` is new and must exercise `parse_opencode_events`
+
   with a real `step_finish` shape:
+
   `{"type": "step_finish", "part": {"cost": 0, "tokens": {"input": 100,
+
   "output": 20, "reasoning": 5, "cache": {"read": 7, "write": 3}}}}`.
+
   Assert the total is 135 and that a top-level `usage` event still counts.
 
+
   Add one failing-run test to `tests/test_dev_pipeline.py` with a runner whose
+
   `run` raises `RuntimeError("boom")`. Assert `outcome.status == "failed"`,
+
   `error.json` has a non-empty `traceback` containing `RuntimeError: boom`,
+
   and the `task_error` event carries the same traceback. Do not use a real
+
   model or network.
+
+
+  2026-11-25: escalated: risk 3 changes the scientific contract and requires human
+  sign-off'
+retries: 0

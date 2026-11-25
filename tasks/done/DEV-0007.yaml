@@ -1,60 +1,80 @@
 id: DEV-0007
 title: Add the console shell and econ console command
-status: proposed
+status: done
 risk: 2
 priority: 100
 created: '2026-11-24'
-goal: |
-  Add `econ console [--host 127.0.0.1] [--port 8100]`, the shell of a local
+goal: 'Add `econ console [--host 127.0.0.1] [--port 8100]`, the shell of a local
+
   FastAPI console for the development pipeline.
 
+
   `src/econ/webui/app.py` exposes `create_console_app(repo: Path | None = None)
+
   -> FastAPI`, and `src/econ/webui/__init__.py` re-exports it. For this slice
+
   `/` renders a static landing page: the console title, a one-line description,
+
   and a note that the task board, run inspector, and authoring chat arrive in
+
   later contracts. `/healthz` returns `{"ok": true}`. Jinja autoescaping stays
+
   on. The app factory must not read or write the repository yet; it only keeps
+
   the repo path for later slices.
 
+
   `econ console` defaults to 127.0.0.1:8100, passes `--host`/`--port` to
+
   `uvicorn.run`, and imports uvicorn inside the command handler. The module
+
   app is `econ.webui.app.app`, matching the `econ web` pattern. Do not change
+
   the existing `/data` app or its routes.
 
+
   Add `tests/test_webui_shell.py` covering: the app factory returns a FastAPI
+
   instance, the module app exists, `/` is 200 and contains the console title,
+
   `/healthz` is 200 JSON, `econ console` defaults to 127.0.0.1:8100, `--host`
+
   and `--port` are honored, and `cmd_console` passes `econ.webui.app.app` and
+
   the host/port to a monkeypatched `uvicorn.run`. Use `TestClient`; never start
+
   uvicorn in a test. Also assert a GET does not create or modify anything in a
+
   temp repository.
+
+  '
 acceptance:
-  - python -m pytest tests/test_webui_shell.py -q
-  - python -m pytest tests/test_web.py -q
-  - python -m econ.cli check
+- python -m pytest tests/test_webui_shell.py -q
+- python -m pytest tests/test_web.py -q
+- python -m econ.cli check
 scope:
   allow:
-    - src/econ/webui/__init__.py
-    - src/econ/webui/app.py
-    - src/econ/templates/console/base.html
-    - src/econ/templates/console/overview.html
-    - src/econ/cli.py
-    - tests/test_webui_shell.py
+  - src/econ/webui/__init__.py
+  - src/econ/webui/app.py
+  - src/econ/templates/console/base.html
+  - src/econ/templates/console/overview.html
+  - src/econ/cli.py
+  - tests/test_webui_shell.py
   deny:
-    - specs/**
-    - data/**
-    - registry/**
-    - eval/**
-    - sandbox/**
-    - reports/**
-    - config/**
-    - src/econ/dev/**
-    - src/econ/web.py
-    - .github/**
-    - tests/dev_support.py
-    - tasks/**
-    - dev/evals/canary/**
-    - pyproject.toml
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/**
+  - config/**
+  - src/econ/dev/**
+  - src/econ/web.py
+  - .github/**
+  - tests/dev_support.py
+  - tasks/**
+  - dev/evals/canary/**
+  - pyproject.toml
 limits:
   max_review_rounds: 2
   max_usd: 5.0
@@ -63,17 +83,30 @@ limits:
   wall_seconds: 2400
 source:
   kind: local
-notes: |
-  First of the console series. Do not touch `src/econ/dev/**`: the controller
+notes: 'First of the console series. Do not touch `src/econ/dev/**`: the controller
+
   is protected and the whole series is a UI or control plane over its
+
   artifacts, never a second pipeline implementation.
 
+
   This slice is deliberately tiny. The read-only overview data (pause, lock,
+
   budget, queue, outcomes, canaries) is DEV-0016; the task board is DEV-0008;
+
   the run inspector is DEV-0009. Keep the landing page static so the shell can
+
   merge quickly and later slices have a stable app factory.
 
+
   `create_console_app` must be repo-injected even though this slice does not
+
   read the repo, so DEV-0016 and later can add read models without changing
+
   the signature. No token, CSRF, or remote-access flow is required here; the
+
   mutation foundation is DEV-0011.
+
+
+  2026-11-24: done: '
+retries: 0

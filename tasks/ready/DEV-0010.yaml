@@ -1,78 +1,116 @@
 id: DEV-0010
 title: Add run transcripts, the patch diff, archives, and live event streaming
-status: proposed
+status: ready
 risk: 2
 priority: 70
 created: '2026-11-24'
-goal: |
-  Extend the run inspector from DEV-0009 with the evidence a human actually
+goal: 'Extend the run inspector from DEV-0009 with the evidence a human actually
+
   reads while reviewing a run: the role transcripts, the patch diff, archived
+
   runs, and a live event stream.
 
+
   Transcripts: `src/econ/webui/runview.py` parses
+
   `runs/dev/tasks/<id>/logs/<role>-r<N>.stdout.log` (and the archived
+
   equivalents) as OpenCode JSONL. For each `type=text` line, collect
+
   `part.text`; for each `type=tool_use`, show the tool name and a short,
+
   truncated input summary; ignore `step_start`/`step_finish` except for a step
+
   count. Never dump unbounded tool output or `sessionID` values. Read at most
+
   the last 2 MB of a log, decode with `errors="replace"`, and tolerate
+
   non-JSON lines. Escape all text.
 
+
   Patch: render `patch.diff` with `+`/`-`/`@@` lines classified for styling,
+
   a file header for each `diff --git`, and a `binary` marker. Escape the diff
+
   content; a `<script>` in a patch line must not execute. Cap the read to the
+
   last 2 MB and show a truncation notice.
 
+
   Archives: `/runs/{task_id}/archive/{stamp}` renders a run under
+
   `runs/dev/archive/<task_id>/<stamp>/run`; `{stamp}` must match
+
   `^\d{8}T\d{6}Z$`. List the available stamps on the latest run page. Unknown
+
   or malformed stamps return 404. The archive layout is read-only.
 
+
   Live events: expose a pure `read_events(path, offset=0, max_bytes=2_000_000)
+
   -> tuple[list[dict], int]` that reads at most `max_bytes` from the byte
+
   `offset` and returns the decoded events plus the byte offset after the last
+
   complete line. A truncated final line is left unconsumed so a later append
+
   can complete it. Add an SSE route `GET /runs/{task_id}/events?after=N` where
+
   `N` is a byte offset. With `once=1`, return a JSON list (for tests and manual
+
   checks); without `once`, return `text/event-stream` with `id:` set to the
+
   byte offset after each event and `data:` set to the event JSON, polling the
+
   file once per second, and stop when the client disconnects. A live stream
-  starts at the current end of the file; the run page's initial history reads
+
+  starts at the current end of the file; the run page''s initial history reads
+
   the last 2 MB, aligned to the next newline, so it can render past events
+
   without replaying them on reconnect. The browser uses `EventSource` and
+
   reconnects from the last id; a reconnect must not repeat events already
+
   rendered. The run page shows the current role/round, the last event, and
+
   elapsed time from the latest `agent_started`; logs appear when a role
+
   finishes because the controller writes them after the call.
 
+
   All reads stay pure and bounded. Missing logs, a missing patch, and a missing
+
   archive render `not recorded`; malformed JSON renders an error card, not a
+
   500. Do not read worktrees.
+
+  '
 acceptance:
-  - python -m pytest tests/test_webui_runstream.py -q
-  - python -m econ.cli check
+- python -m pytest tests/test_webui_runstream.py -q
+- python -m econ.cli check
 scope:
   allow:
-    - src/econ/webui/app.py
-    - src/econ/webui/runview.py
-    - src/econ/templates/console/run.html
-    - tests/webui_support.py
-    - tests/test_webui_runstream.py
+  - src/econ/webui/app.py
+  - src/econ/webui/runview.py
+  - src/econ/templates/console/run.html
+  - tests/webui_support.py
+  - tests/test_webui_runstream.py
   deny:
-    - specs/**
-    - data/**
-    - registry/**
-    - eval/**
-    - sandbox/**
-    - reports/**
-    - config/**
-    - src/econ/dev/**
-    - src/econ/web.py
-    - .github/**
-    - tests/dev_support.py
-    - tasks/**
-    - dev/evals/canary/**
-    - pyproject.toml
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/**
+  - config/**
+  - src/econ/dev/**
+  - src/econ/web.py
+  - .github/**
+  - tests/dev_support.py
+  - tasks/**
+  - dev/evals/canary/**
+  - pyproject.toml
 limits:
   max_review_rounds: 2
   max_usd: 5.0
@@ -81,25 +119,44 @@ limits:
   wall_seconds: 2400
 source:
   kind: local
-notes: |
-  Run only after DEV-0009 has merged. This slice extends its parser and
+notes: 'Run only after DEV-0009 has merged. This slice extends its parser and
+
   template; it must not duplicate the event/decision/gate readers.
 
-  The controller captures each agent's stdout with `subprocess.run` and writes
+
+  The controller captures each agent''s stdout with `subprocess.run` and writes
+
   the log after the call returns, so token-level streaming of a pipeline role
+
   is not available and must not be promised. The live view is the event
+
   timeline plus elapsed time; the transcript appears per completed role. Live
+
   token streaming belongs only to the authoring chat in DEV-0013/0014.
 
+
   SSE is deliberately simple: no WebSocket, no file watcher, no background
+
   thread, one second polling inside the response generator. Keep the pure
+
   `read_events` function separate so the streaming route is a thin wrapper and
+
   tests never sleep. A truncated final line is not an event; leave the offset
+
   before it so a later append can complete it.
 
+
   Tests must cover: text and tool extraction, a log with a `<script>`, the
+
   2 MB read cap (pass a small limit to the helper), diff line classes, an
+
   escaped diff, a valid and an invalid archive stamp, `read_events` with a
+
   byte offset before/at/after the end, a truncated final line followed by a
+
   completed append, and `once=1` for the SSE route. Do not depend on a real
+
   run directory in the checkout.
+
+  '
+retries: 0

@@ -1,0 +1,100 @@
+id: DEV-0009
+title: Add the run inspector for decisions, gates, cost, and artifacts
+status: ready
+risk: 2
+priority: 80
+created: '2026-11-24'
+goal: "Extend the console from DEV-0007/0008 with a read-only run inspector at\n`/runs/{task_id}`\
+  \ for the latest run under `runs/dev/tasks/<task_id>/`.\n\nPut artifact parsing\
+  \ in a new `src/econ/webui/runview.py` so the later\ntranscript and stream slices\
+  \ can reuse it. The inspector shows:\n\n- the terminal decision from `decision.json`:\
+  \ status, reason, risk, shadow,\n  merge policy, merged commit, and human_required;\
+  \ when the file is missing,\n  show `running` or `no decision recorded` instead\
+  \ of failing;\n- a chronological event timeline from `events.jsonl` with one row\
+  \ per line:\n  timestamp, event, role, round, status, and a short detail; skip a\n\
+  \  truncated or malformed final line and never raise;\n- gate tables from `gates-pre.json`,\
+  \ `gates-post.json`, `gates-merge.json`,\n  and `test-report.json` when those files\
+  \ exist: gate name, PASS/FAIL,\n  blocking/human-required flags, detail, duration,\
+  \ and the evidence path;\n- cost and tokens from `cost.json`, step utilization from\
+  \ `steps.json`;\n- role artifacts from `out/*.json` as collapsible pretty-printed\
+  \ JSON;\n- the patch summary from `decision.json` when present, otherwise a line\n\
+  \  count from `patch.diff`;\n- links to the run directory and to the evidence files\
+  \ that actually exist.\n\nThe task detail page from DEV-0008 gains a `View run`\
+  \ link when the run\ndirectory exists. Add a `Runs` link only if it points to the\
+  \ current task's\nrun; there is no global run list in this slice.\n\nReads are pure\
+  \ and bounded: never write under `runs/`, never read a\nworktree, and cap any file\
+  \ read to the last 2 MB. Missing files render\n`not recorded`; malformed JSON renders\
+  \ an error card, not a 500. Escape all\nartifact content, especially gate details\
+  \ and decision reasons.\n"
+acceptance:
+- python -m pytest tests/test_webui_runs.py -q
+- python -m econ.cli check
+scope:
+  allow:
+  - src/econ/webui/app.py
+  - src/econ/webui/readmodels.py
+  - src/econ/webui/runview.py
+  - src/econ/templates/console/run.html
+  - src/econ/templates/console/task.html
+  - tests/webui_support.py
+  - tests/test_webui_runs.py
+  deny:
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/**
+  - config/**
+  - src/econ/dev/**
+  - src/econ/web.py
+  - .github/**
+  - tests/dev_support.py
+  - tasks/**
+  - dev/evals/canary/**
+  - pyproject.toml
+limits:
+  max_review_rounds: 2
+  max_usd: 5.0
+  max_changed_files: 7
+  max_diff_lines: 400
+  wall_seconds: 2400
+source:
+  kind: local
+notes: 'Run only after DEV-0008 has merged. This slice reuses the task detail
+
+  template and the fixture''s task writer.
+
+
+  `econ.dev.artifacts.RunArtifacts` is a convenient reader, but constructing
+
+  it is side-effect free; `ensure()` is not. Prefer `read_json()` and direct
+
+  paths. Do not import `DevPipeline` or `DevScheduler`.
+
+
+  The event timeline is the live-progress substrate for DEV-0010. Keep the
+
+  parser a pure function over a path or a list of event dicts so it can be
+
+  reused and tested without a running task. Use `event.get("ts")`,
+
+  `event.get("event")`, `event.get("role")`, `event.get("round")`, and
+
+  `event.get("status")`; tolerate missing keys.
+
+
+  Tests must build a synthetic run dir with `events.jsonl`, `decision.json`,
+
+  `gates-pre.json`, `gates-post.json`, `cost.json`, `steps.json`,
+
+  `out/implementer.json`, and `patch.diff`. Cover a completed run, a run with
+
+  no decision, missing gate files, malformed JSON, a truncated final event
+
+  line, HTML escaping in a gate detail, and a before/after snapshot proving
+
+  GET is side-effect free. Do not depend on `runs/dev/` in the checkout.
+
+  '
+retries: 0

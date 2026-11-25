@@ -1,71 +1,104 @@
 id: DEV-0005
 title: Add econ dev watch and show in-flight work in status and report
-status: proposed
+status: escalated
 risk: 3
 priority: 60
 created: '2026-11-24'
-goal: |
-  Make active development work visible without waiting for a terminal state.
+goal: 'Make active development work visible without waiting for a terminal state.
+
 
   `econ dev watch [TASK]` polls the existing run artifacts and prints one row
+
   per active task: task id, phase/role, round, elapsed since the current
+
   `agent_started` (or since the last event when no agent is running), the last
+
   event, steps and tokens from the latest `agent_call`, and a `stale` flag when
-  the current call has exceeded the task's `limits.wall_seconds` or the run has
+
+  the current call has exceeded the task''s `limits.wall_seconds` or the run has
+
   been silent longer than a fixed threshold (300 seconds). Support `--once`,
+
   `--interval` (default 2 seconds), and `--json`; do not use curses. A TASK
+
   argument filters to one run.
 
+
   `econ dev status` adds the same phase and elapsed detail for tasks in
+
   `tasks/active/` and lists tasks whose `state.json` is `awaiting_merge`.
+
   `econ dev report` and `reports/dev_dashboard.*` gain an "In flight" section
+
   with active and awaiting-merge rows plus a stale count.
 
+
   Keep the existing `total` metric as the number of terminal `index.jsonl`
+
   rows. Add `in_flight`, `awaiting_merge`, and `stale` fields so existing
+
   metrics and tests keep their meaning.
 
+
   Reuse `src/econ/dev/view.py` for loading runs and computing elapsed and
+
   stale; do not duplicate artifact parsing. No changes to the pipeline,
+
   runner, scheduler selection, or merge behavior.
+
+  '
 acceptance:
-  - python -m pytest tests/test_dev_watch.py -q
-  - python -m pytest tests/test_dev_report_release.py -q
+- python -m pytest tests/test_dev_watch.py -q
+- python -m pytest tests/test_dev_report_release.py -q
 scope:
   allow:
-    - src/econ/dev/view.py
-    - src/econ/dev/cli.py
-    - src/econ/dev/report.py
-    - tests/test_dev_watch.py
-    - tests/test_dev_report_release.py
+  - src/econ/dev/view.py
+  - src/econ/dev/cli.py
+  - src/econ/dev/report.py
+  - tests/test_dev_watch.py
+  - tests/test_dev_report_release.py
   deny:
-    - specs/**
-    - data/**
-    - registry/**
-    - eval/**
-    - sandbox/**
-    - reports/final_report.md
-    - reports/lockbox_report.md
-    - config/**
-    - .github/**
-    - tests/dev_support.py
-    - tasks/templates/**
-    - dev/evals/canary/**
+  - specs/**
+  - data/**
+  - registry/**
+  - eval/**
+  - sandbox/**
+  - reports/final_report.md
+  - reports/lockbox_report.md
+  - config/**
+  - .github/**
+  - tests/dev_support.py
+  - tasks/templates/**
+  - dev/evals/canary/**
 limits:
   max_review_rounds: 2
-  max_usd: 5
+  max_usd: 5.0
   max_changed_files: 5
   max_diff_lines: 450
   wall_seconds: 2400
-notes: |
-  Run only after DEV-0004 has merged: this contract reuses the
+source:
+  kind: local
+notes: 'Run only after DEV-0004 has merged: this contract reuses the
+
   `src/econ/dev/view.py` loader and renderer added there.
 
+
   Keep the watch loop dependency-free and testable: put the row builder and
+
   renderer in view.py behind an explicit `now` argument, and let the CLI own
+
   the sleep loop. `--json` should emit one JSON object per tick (JSONL), not a
+
   single array, so it can be piped and followed. Tests must not sleep.
 
+
   Risk 3 by construction: `src/econ/dev/**` is protected, so the controller
+
   will escalate this task for human sign-off. For a manual smoke test, run
+
   `python -m econ.cli dev watch --once` while a real task is active.
+
+
+  2026-11-25: escalated: risk 3 changes the scientific contract and requires human
+  sign-off'
+retries: 0
