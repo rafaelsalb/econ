@@ -1,6 +1,6 @@
 # Development dashboard
 
-Generated: `2026-11-25T17:22:50+00:00`
+Generated: `2026-11-26T01:50:08+00:00`
 
 | Metric | Value |
 |---|---:|
@@ -14,7 +14,7 @@ Generated: `2026-11-25T17:22:50+00:00`
 | Human intervention rate | 100.0% |
 | Average review rounds | 0.0 |
 | Step-limited runs | 0 |
-| Highest step utilization | 70% |
+| Highest step utilization | 32% |
 | Recorded model cost | $0.00 |
 
 ## By risk
@@ -35,4 +35,4 @@ Passed 0 of 0.
 
 | Task | Status | Risk | Rounds | Reason |
 |---|---|---:|---:|---|
-| DEV-0009 | escalated | 2 | 0 | Required predecessor DEV-0008 is not merged on this base (tasks/escalated/DEV-0008.yaml; readmodels. |
+| DEV-0010 | escalated | 2 | 0 | Prerequisite DEV-0009 has not merged into this worktree: src/econ/webui/runview.py, src/econ/templat |

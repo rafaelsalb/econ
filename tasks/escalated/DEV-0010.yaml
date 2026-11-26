@@ -1,6 +1,6 @@
 id: DEV-0010
 title: Add run transcripts, the patch diff, archives, and live event streaming
-status: ready
+status: escalated
 risk: 2
 priority: 70
 created: '2026-11-24'
@@ -119,6 +119,7 @@ limits:
   wall_seconds: 2400
 source:
   kind: local
+depends_on: []
 notes: 'Run only after DEV-0009 has merged. This slice extends its parser and
 
   template; it must not duplicate the event/decision/gate readers.
@@ -158,5 +159,11 @@ notes: 'Run only after DEV-0009 has merged. This slice extends its parser and
 
   run directory in the checkout.
 
-  '
+
+  2026-11-26: escalated: Prerequisite DEV-0009 has not merged into this worktree:
+  src/econ/webui/runview.py, src/econ/templates/console/run.html, tests/webui_support.py,
+  and the /runs routes are all absent. The packet explicitly says to extend that inspector
+  and not duplicate its event/decision/gate readers, so implementing this slice now
+  would either miss required behavior or exceed the task limits. Resolve the dependency,
+  then rerun the lead.'
 retries: 0
