@@ -1,27 +1,26 @@
 # Development dashboard
 
-Generated: `2026-11-26T01:50:08+00:00`
+Generated: `2026-11-26T13:14:23+00:00`
 
 | Metric | Value |
 |---|---:|
-| Tasks recorded | 1 |
+| Tasks recorded | 0 |
 | Merged | 0 |
 | Shadow approvals | 0 |
-| Escalated to human | 1 |
+| Escalated to human | 0 |
 | Failed | 0 |
 | First-pass rate | 0.0% |
 | Autonomy rate (merged / total) | 0.0% |
-| Human intervention rate | 100.0% |
+| Human intervention rate | 0.0% |
 | Average review rounds | 0.0 |
 | Step-limited runs | 0 |
-| Highest step utilization | 32% |
+| Highest step utilization | 0% |
 | Recorded model cost | $0.00 |
 
 ## By risk
 
 | Risk | Tasks |
 |---|---:|
-| 2 | 1 |
 
 ## Held-out canaries
 
@@ -35,4 +34,3 @@ Passed 0 of 0.
 
 | Task | Status | Risk | Rounds | Reason |
 |---|---|---:|---:|---|
-| DEV-0010 | escalated | 2 | 0 | Prerequisite DEV-0009 has not merged into this worktree: src/econ/webui/runview.py, src/econ/templat |
