@@ -10,7 +10,7 @@ Checks: 5 passed, 0 failed.
 
 Generated canaries awaiting human promotion (`econ dev canary --promote <ID>` after curating the demo): CANARY-004.yaml
 
-# Development digest — 2026-11-26
+# Development digest — 2026-11-27
 
 Last 1 day(s): 0 task outcome(s).
 Merged: 0; escalated: 0; failed: 0.
